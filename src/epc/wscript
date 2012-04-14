@@ -1,0 +1,47 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+# def options(opt):
+#     pass
+
+# def configure(conf):
+#     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
+
+def build(bld):
+    module = bld.create_ns3_module('epc', ['core'])
+    module.source = [
+        'model/rfid-mac-reader.cc',
+        'model/rfid-logic-reader.cc',
+        'model/rfid-phy-reader.cc',
+	'model/select-header.cc',
+        'model/ack-header.cc',
+        'model/query-header.cc',
+	'model/rfid-channel.cc',
+        'model/rfid-net-device.cc',
+	'model/rfid-raw-socket.cc',
+        ]
+
+    module_test = bld.create_ns3_module_test_library('epc')
+    module_test.source = [
+        'test/epc-test-suite.cc',
+
+        ]
+
+    headers = bld.new_task_gen(features=['ns3header'])
+    headers.module = 'epc'
+    headers.source = [
+        'model/rfid-mac-reader.h',
+        'model/rfid-logic-reader.h',
+        'model/rfid-phy-reader.h',
+	'model/select-header.h',
+        'model/ack-header.h',
+        'model/query-header.h',
+	'model/rfid-channel.h',
+        'model/rfid-net-device.h',
+	'model/rfid-raw-socket.h'
+        ]
+
+    if bld.env.ENABLE_EXAMPLES:
+        bld.add_subdirs('examples')
+
+    # bld.ns3_python_bindings()
+
