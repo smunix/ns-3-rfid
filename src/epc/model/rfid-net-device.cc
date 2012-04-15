@@ -59,4 +59,9 @@ RfidNetDevice::SetChannel (Ptr<RfidChannel> channel)
   m_channel = channel;
 }
 
+Ptr<Node>
+RfidNetDevice::GetNode (void) const
+{
+  return m_node;
+}
 }

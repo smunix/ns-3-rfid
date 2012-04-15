@@ -33,5 +33,11 @@ RfidPhyReader::Receive(Ptr<Packet> p)
 mac->Receive(p);
 }
 
+Ptr<Object>
+RfidPhyReader::GetDevice (void)
+{
+  return m_device;
+}
+
 /*cette partie manque encore l'ajout des caractéristique de la couche physiaque et les durées de transmissions des entêtes et du message en fonction du type de transmision et l'atténuation du signal en fonction des phénomènes physiques */
 }//namespace ns3

@@ -56,6 +56,7 @@ private:
 Ptr<RfidMacReader> m_mac;
 Ptr<RfidPhyReader> m_phy;
 Ptr<RfidChannel> m_channel;
+Ptr<Node> m_node;
 
 
 };
