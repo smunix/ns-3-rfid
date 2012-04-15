@@ -26,6 +26,7 @@
 #include <map>
 #include "ns3/ptr.h"
 #include "ns3/net-device.h"
+#include "ns3/node-container.h"
 #include "ns3/nstime.h"
 #include "ns3/log.h"
 #include "ns3/node-list.h"
@@ -128,6 +129,24 @@ public:
   void SetXMLOutput ();
 
   /**
+   * \brief Specify the time at which capture should start
+   * 
+   * \param t The time at which AnimationInterface should begin capture of traffic info
+   *
+   * \returns none
+   */
+  void SetStartTime (Time t);
+
+  /**
+   * \brief Specify the time at which capture should stop
+   * 
+   * \param t The time at which AnimationInterface should stop capture of traffic info
+   *
+   * \returns none
+   */
+  void SetStopTime (Time t);
+
+  /**
    * \brief (Deprecated) Specify that animation commands are to be written to
    * a socket.
    *
@@ -211,6 +230,22 @@ public:
   static void SetConstantPosition (Ptr <Node> n, double x, double y, double z=0);
 
   /**
+   * \brief Helper function to set a brief description for a given node
+   * \param n Ptr to the node
+   * \param descr A string to briefly describe the node
+   *
+   */
+  static void SetNodeDescription (Ptr <Node> n, std::string descr);
+
+  /**
+   * \brief Helper function to set a brief description for nodes in a Node Container
+   * \param nc NodeContainer containing the nodes
+   * \param descr A string to briefly describe the nodes
+   *
+   */
+  static void SetNodeDescription (NodeContainer nc, std::string descr);
+
+  /**
    * \brief Is AnimationInterface started
    * \returns true if AnimationInterface was started
    *
@@ -233,6 +268,8 @@ public:
    */
   void EnablePacketMetadata (bool enable);
 
+
+
 private:
 #ifndef WIN32
   int m_fHandle;  // File handle for output (-1 if none)
@@ -249,6 +286,7 @@ private:
   std::string outputfilename;
   bool OutputFileSet;
   bool ServerPortSet;
+
   void DevTxTrace (std::string context,
                    Ptr<const Packet> p,
                    Ptr<NetDevice> tx,
@@ -343,12 +381,18 @@ private:
   void ConnectCallbacks ();
 
   bool m_started;
-  bool m_enforceWifiMacRx;
   bool m_enablePacketMetadata; 
+  Time m_startTime;
+  Time m_stopTime;
+  
+  std::map <std::string, uint32_t> m_macToNodeIdMap;
+  bool IsInTimeWindow ();
 
   // Path helper
   std::vector<std::string> GetElementsFromContext (std::string context);
   Ptr <NetDevice> GetNetDeviceFromContext (std::string context);
+
+  static std::map <uint32_t, std::string> nodeDescriptions;
 
   // XML helpers
   std::string GetPreamble (void);
