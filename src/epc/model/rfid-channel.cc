@@ -40,7 +40,7 @@ RfidChannel::Send (Ptr<const Packet> packet)
           Ptr<Packet> copy = packet->Copy ();
           uint32_t dstNode;
           dstNode = m_phyList[j]->GetDevice ()->GetObject<NetDevice> ()->GetNode ()->GetId ();
-          //Simulator::ScheduleNow (dstNode,&RfidChannel::Receive,this, j, copy);
+     //     Simulator::ScheduleNow (RfidChannel::Receive,this, dstNode, copy);
           // j'ai un problème avec la dérnière commande :(
     }
 }
