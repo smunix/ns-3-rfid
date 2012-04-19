@@ -37,11 +37,14 @@ RfidChannel::Send (Ptr<const Packet> packet)
   for (PhyList::const_iterator i = m_phyList.begin (); i != m_phyList.end (); i++, j++)
     {
       
-          Ptr<Packet> copy = packet->Copy ();
-          uint32_t dstNode;
-          dstNode = m_phyList[j]->GetDevice ()->GetObject<NetDevice> ()->GetNode ()->GetId ();
+          // Ptr<Packet> copy = packet->Copy ();
+          // uint32_t dstNode;
+          // dstNode = m_phyList[j]->GetDevice ()->GetObject<NetDevice> ()->GetNode ()->GetId ();
      //     Simulator::ScheduleNow (RfidChannel::Receive,this, dstNode, copy);
           // j'ai un problème avec la dérnière commande :(
+          Simulator::ScheduleNow (&RfidChannel::Receive, this,
+                                  m_phyList[j]->GetDevice ()->GetObject<NetDevice> ()->GetNode ()->GetId (),
+                                  packet->Copy ());
     }
 }
 

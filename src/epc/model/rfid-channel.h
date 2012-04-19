@@ -22,7 +22,7 @@ public:
   
 
 private:
-void Receive (uint32_t i, Ptr<Packet> packet) const;
+void DoReceive (uint32_t i, Ptr<Packet> packet) const;
 typedef std::vector<Ptr<RfidPhyReader> > PhyList;
 
 PhyList m_phyList;
