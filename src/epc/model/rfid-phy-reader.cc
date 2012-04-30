@@ -2,7 +2,7 @@
 #include "rfid-mac-reader.h"
 #include "rfid-channel.h"
 #include "ns3/packet.h"
-
+#include <iostream>
 namespace ns3 
 {
 
@@ -24,13 +24,17 @@ RfidPhyReader::~RfidPhyReader (){}
 void
 RfidPhyReader::Send(Ptr<Packet> p)
 {
-channel->Send(p);
+
+Ptr<Packet> packet=p->Copy ();
+m_channel->Sendto(packet);
+
+
 }
 
 void
 RfidPhyReader::Receive(Ptr<Packet> p)
 {
-mac->Receive(p);
+m_mac->Receive(p);
 }
 
 Ptr<Object>

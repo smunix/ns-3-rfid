@@ -319,11 +319,11 @@ PacketSocket::SendTo (Ptr<Packet> p, uint32_t flags, const Address &address)
       return -1;
     }
   ad = PacketSocketAddress::ConvertFrom (address);
-  if (p->GetSize () > GetMinMtu (ad))
+  /*if (p->GetSize () > GetMinMtu (ad))
     {
       m_errno = ERROR_MSGSIZE;
       return -1;
-    }
+    }*/
 
   bool error = false;
   Address dest = ad.GetPhysicalAddress ();

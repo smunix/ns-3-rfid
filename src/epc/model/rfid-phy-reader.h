@@ -27,8 +27,8 @@ int m_coding;
 int m_rate;
 Ptr<Object> m_device;
 
-Ptr<RfidChannel> channel;
-Ptr<RfidMacReader> mac;
+Ptr<RfidChannel> m_channel;
+Ptr<RfidMacReader> m_mac;
 };
 
 } //namespace ns3

@@ -13,16 +13,16 @@ public:
   static TypeId GetTypeId (void);
   RfidChannel ();
   virtual ~RfidChannel ();
-  void Send(Ptr<const Packet> p);
+  void Sendto(Ptr<Packet> packet);
   void Add (Ptr<RfidPhyReader> phy);
   void Receive (uint32_t i, Ptr<Packet> packet);
 
-  virtual uint32_t GetNDevices (void) const = 0;
-  virtual Ptr<NetDevice> GetDevice (uint32_t i) const = 0;
+  virtual uint32_t GetNDevices (void) const ;
+  virtual Ptr<NetDevice> GetDevice (uint32_t i) const ;
   
 
 private:
-void DoReceive (uint32_t i, Ptr<Packet> packet) const;
+void Receive (uint32_t i, Ptr<Packet> packet) const;
 typedef std::vector<Ptr<RfidPhyReader> > PhyList;
 
 PhyList m_phyList;

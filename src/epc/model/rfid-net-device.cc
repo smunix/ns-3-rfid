@@ -26,23 +26,7 @@ RfidNetDevice::RfidNetDevice()
 RfidNetDevice::~RfidNetDevice()
 {}
 
-/*
-Ptr<NetDeviceContainer>
-RfidNetDevice::Install (Ptr<RfidPhyReader> phy,Ptr<RfidMacReader> mac, NodeContainer c) 
-{
-  NetDeviceContainer devices;
-  for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
-    {
-      Ptr<Node> node = *i;
-      Ptr<RfidNetDevice> device = CreateObject<RfidNetDevice> ();
-      device->SetMac (mac);
-      device->SetPhy (phy);
-      node->AddDevice (device);
-      devices.Add (device);
-    }
-  return devices;
-}
-*/
+
 
 void
 RfidNetDevice::SetMac (Ptr<RfidMacReader> mac)
@@ -96,15 +80,15 @@ return 0;
 void
 RfidNetDevice::SetAddress (Address address)
 {
- // m_mac->SetAddress (Mac48Address::ConvertFrom (address));
+  m_mac->SetAddress (Mac48Address::ConvertFrom (address));
 }
 
 
 Address
 RfidNetDevice::GetAddress (void) const
 {
-  //return m_mac->GetAddress ();
-  return m_address;
+  return m_mac->GetAddress ();
+ // return m_address;
 }
 
 bool
@@ -185,6 +169,8 @@ RfidNetDevice::Send (Ptr<Packet> packet, const Address& dest, uint16_t protocolN
 
   m_mac->NotifyTx (packet);
   m_mac->Enqueue (packet, realTo);*/
+	
+  m_mac->Send();
   return true;
 }
 
