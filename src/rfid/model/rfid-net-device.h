@@ -32,6 +32,8 @@ namespace ns3
   namespace rfid
   {
     class TagIdentification;
+    class ReaderIdentification;
+    class Identification;
   }
 
   class RfidNetDevice : public NetDevice
@@ -184,6 +186,7 @@ namespace ns3
      * \return whether the Send operation succeeded
      */
     virtual bool Send (Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber);
+    bool Send (Ptr<Packet> packet);
     /**
      * \param packet packet sent from above down to Network Device
      * \param source source mac address (so called "MAC spoofing")
@@ -251,13 +254,17 @@ namespace ns3
     void SetPhy (Ptr<class RfidPhy>);
     Ptr<RfidPhy> GetPhy (void) const;
 
-    Ptr<rfid::TagIdentification> GetTagIdentification() const;
-    void SetTagIdentification(Ptr<rfid::TagIdentification> tagIdentification);
+    Ptr<rfid::Identification> GetIdentification() const;
+    void SetIdentification(Ptr<rfid::Identification> Identification);
 
     virtual void DoDispose (void);
     void NotifyLinkUp(void);
     Ptr<class RfidChannel> DoGetChannel() const;
     void ForwardUp (Ptr<Packet> packet, Mac16Address from, Mac16Address to, uint16_t proto);
+
+    typedef Callback<bool,Ptr<NetDevice>,Ptr<const Packet>,uint16_t> ReceiveRfidCallback;
+    void ForwardRfidUp (Ptr<Packet> packet, uint16_t header);
+    void SetReceiveRfidCallback (ReceiveRfidCallback cb);
   private:
     uint32_t m_deviceId;
     bool m_sendEnable;
@@ -268,7 +275,7 @@ namespace ns3
     uint32_t m_mtu;
 
     Ptr<class RfidChannel> m_channel;
-    Ptr<rfid::TagIdentification> m_tagIdentification;
+    Ptr<rfid::Identification> m_Identification;
     Ptr<class RfidPhy> m_phy;
     Ptr<Node> m_node;
 
@@ -293,6 +300,9 @@ namespace ns3
     TracedCallback<Ptr<const Packet> ,Mac16Address> m_rxLogger;
     TracedCallback<Ptr<const Packet> ,Mac16Address> m_txLogger;
     TracedCallback<> m_linkChanges;
+
+    ReceiveRfidCallback m_rxRfidCallback;
+    ReceiveRfidCallback m_forwardRfidUp;
   };
 }
 

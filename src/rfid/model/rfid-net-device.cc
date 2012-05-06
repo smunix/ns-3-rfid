@@ -26,7 +26,7 @@
 #include "rfid-channel.h"
 #include "rfid-phy.h"
 #include "rfid-net-device.h"
-#include "rfid-tag-identification.h"
+#include "rfid-identification.h"
 
 NS_LOG_COMPONENT_DEFINE("RfidNetDevice");
 
@@ -46,11 +46,11 @@ namespace ns3
             "The PHY layer attached to this device.", PointerValue(),
             MakePointerAccessor(&RfidNetDevice::GetPhy, &RfidNetDevice::SetPhy),
             MakePointerChecker<RfidPhy>()).AddAttribute("Identification",
-            "The TAG identification layer attached to this device.",
+            "The identification layer attached to this device.",
             PointerValue(),
-            MakePointerAccessor(&RfidNetDevice::GetTagIdentification,
-                &RfidNetDevice::SetTagIdentification),
-            MakePointerChecker<rfid::TagIdentification>());
+            MakePointerAccessor(&RfidNetDevice::GetIdentification,
+                &RfidNetDevice::SetIdentification),
+            MakePointerChecker<rfid::Identification>());
     return tid;
   }
   RfidNetDevice::RfidNetDevice (void)
@@ -67,7 +67,7 @@ namespace ns3
   {
     NS_LOG_FUNCTION_NOARGS ();
     m_node = 0;
-    m_tagIdentification = 0;
+    m_Identification = 0;
     m_phy = 0;
     // chain up.
     NetDevice::DoDispose();
@@ -108,13 +108,13 @@ namespace ns3
   RfidNetDevice::SetAddress (Address address)
   {
     NS_LOG_FUNCTION(address);
-    m_tagIdentification->SetAddress(address);
+    m_Identification->SetAddress(address);
   }
   Address
   RfidNetDevice::GetAddress (void) const
   {
     NS_LOG_FUNCTION_NOARGS();
-    return m_tagIdentification->GetAddress();
+    return m_Identification->GetAddress();
   }
   bool
   RfidNetDevice::IsLinkUp (void) const
@@ -160,21 +160,21 @@ namespace ns3
     m_channel = channel;
   }
 
-  Ptr<rfid::TagIdentification>
-  RfidNetDevice::GetTagIdentification () const
+  Ptr<rfid::Identification>
+  RfidNetDevice::GetIdentification () const
   {
     NS_LOG_FUNCTION_NOARGS();
-    return m_tagIdentification;
+    return m_Identification;
   }
 
   void
-  RfidNetDevice::SetTagIdentification (
-      Ptr<rfid::TagIdentification> tagIdentification)
+  RfidNetDevice::SetIdentification (
+      Ptr<rfid::Identification> Identification)
   {
-    NS_LOG_FUNCTION(tagIdentification);
-    m_tagIdentification = tagIdentification;
-    if (m_tagIdentification and m_phy)
-      m_tagIdentification->SetRfidPhy(m_phy);
+    NS_LOG_FUNCTION(Identification);
+    m_Identification = Identification;
+    if (m_Identification and m_phy)
+      m_Identification->SetRfidPhy(m_phy);
   }
 
   void
@@ -182,8 +182,8 @@ namespace ns3
   {
     NS_LOG_FUNCTION(phy);
     m_phy = phy;
-    if (m_tagIdentification and m_phy)
-      m_tagIdentification->SetRfidPhy(m_phy);
+    if (m_Identification and m_phy)
+      m_Identification->SetRfidPhy(m_phy);
   }
 
   Ptr<RfidPhy>
@@ -228,8 +228,17 @@ namespace ns3
       uint16_t protocolNumber)
   {
     NS_LOG_FUNCTION("dest=" << dest << ", proto=" << protocolNumber);
-    return m_tagIdentification->Send (packet, dest, protocolNumber);
+    //return m_Identification->Send (packet, dest, protocolNumber);
+    return false;
   }
+
+  bool
+  RfidNetDevice::Send (Ptr<Packet> packet)
+  {
+   
+    return m_Identification->Send (packet);
+  }
+
   Ptr<Node>
   RfidNetDevice::GetNode (void) const
   {
@@ -277,5 +286,19 @@ namespace ns3
     NS_LOG_FUNCTION ("packet=" << packet << ", from=" << from << ", proto=" << proto);
     m_rxCallback (this, packet, proto, from);
   }
+
+    void 
+    RfidNetDevice::SetReceiveRfidCallback (ReceiveRfidCallback cb)
+    {
+    NS_LOG_FUNCTION (&cb);
+    m_rxRfidCallback = cb;
+    }    
+
+    void 
+    RfidNetDevice::ForwardRfidUp (Ptr<Packet> packet, uint16_t header)
+    {
+    NS_LOG_FUNCTION ("packet=" << packet <<  ", header=" << header);
+    m_rxRfidCallback (this, packet, header);
+    }
 }
 

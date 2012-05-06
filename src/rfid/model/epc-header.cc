@@ -54,15 +54,13 @@ namespace ns3
   uint32_t
   EpcHeader::GetSerializedSize (void) const
   {
-    return Mac16Address::LENGTH + Mac16Address::LENGTH + sizeof (m_protocol);
+    return sizeof (m_header);
   }
   void
   EpcHeader::Serialize (Buffer::Iterator start) const
   {
     Buffer::Iterator i = start;
-    Write(i, m_from);
-    Write(i, m_to);
-    i.WriteHtonU16 (m_protocol);
+    i.WriteHtonU16 (m_header);
   }
   void
   EpcHeader::Write(Buffer::Iterator &i, Mac16Address const &ad) const
@@ -82,15 +80,13 @@ namespace ns3
   EpcHeader::Deserialize (Buffer::Iterator start)
   {
     Buffer::Iterator i = start;
-    Read(i, m_from);
-    Read(i, m_to);
-    m_protocol = i.ReadNtohU16 ();
+    m_header = i.ReadNtohU16 ();
     return GetSerializedSize();
   }
   void
   EpcHeader::Print (std::ostream &os) const
   {
-    os << m_from << " " << m_to << " " << m_protocol;
+    os << m_header;
   }
   void
   EpcHeader::SetFromAddress (Mac16Address const &address)
@@ -123,6 +119,17 @@ namespace ns3
   EpcHeader::GetProtocolNumber (void) const
   {
     return m_protocol;
+  }
+  
+  void
+  EpcHeader::SetHeader (uint16_t header)
+  {
+    m_header = header;
+  }
+  uint16_t
+  EpcHeader::GetHeader (void) const
+  {
+    return m_header;
   }
 }
 

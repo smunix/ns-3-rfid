@@ -34,12 +34,16 @@ private:
   CreateOne (Vector pos, Ptr<RfidChannel> channel);
   void
   SendOnePacket (Ptr<RfidNetDevice> dev);
-  bool Sink (Ptr<NetDevice>, Ptr<const Packet>, uint16_t, const Address &);
+  void
+  CreateTwo (Vector pos, Ptr<RfidChannel> channel);
+  bool Sink (Ptr<NetDevice>, Ptr<const Packet>, uint16_t);
 private:
   typedef std::vector<Ptr<RfidNetDevice> > NetDevices;
   NetDevices m_devices;
   ObjectFactory m_tagIdentification;
+  ObjectFactory m_readerIdentification;
   uint16_t m_count;
+  
 };
 
 // Add some help text to this case to describe what it is intended to test
@@ -47,6 +51,7 @@ RfidTestCaseChannel::RfidTestCaseChannel () :
     TestCase("Rfid test case (does nothing)")
 {
   m_tagIdentification.SetTypeId("ns3::rfid::TagIdentification");
+  m_readerIdentification.SetTypeId("ns3::rfid::ReaderIdentification");
   m_count = 0;
 }
 
@@ -55,20 +60,55 @@ RfidTestCaseChannel::RfidTestCaseChannel () :
 RfidTestCaseChannel::~RfidTestCaseChannel ()
 {
 }
-bool RfidTestCaseChannel::Sink (Ptr<NetDevice> dev, Ptr<const Packet> pkt, uint16_t proto, const Address &ad)
+bool RfidTestCaseChannel::Sink (Ptr<NetDevice> dev, Ptr<const Packet> pkt, uint16_t header)
 {
-  DO_LOG ("Received : dev=" << dev->GetAddress() << ", pkt=" << pkt << ", proto=" << proto << ", address=" << Mac16Address::ConvertFrom (ad));
+  DO_LOG ("Received : dev=" << dev->GetAddress() << ", pkt=" << pkt << ", header=" << header );
   m_count++;
   return true;
 }
 void
 RfidTestCaseChannel::SendOnePacket (Ptr<RfidNetDevice> dev)
 {
-  Ptr<Packet> p = Create<Packet>();
-  dev->Send(p, dev->GetBroadcast(), 1);
+  Ptr<Packet> p = Create<Packet>(0);
+  dev->Send(p);
 }
+
 void
 RfidTestCaseChannel::CreateOne (Vector pos, Ptr<RfidChannel> channel)
+{
+  Ptr<Node> node = CreateObject<Node>();
+  Ptr<ConstantPositionMobilityModel> mobility = CreateObject<
+      ConstantPositionMobilityModel>();
+  Ptr<RfidNetDevice> dev = CreateObject<RfidNetDevice>();
+  Ptr<rfid::ReaderIdentification> readerId = m_readerIdentification.Create<
+      rfid::ReaderIdentification>();
+  Ptr<RfidPhy> phy = CreateObject<RfidPhy>();
+
+  mobility->SetPosition(pos);
+
+  readerId->SetRfidPhy(phy);
+  readerId->SetAddress(Mac16Address::Allocate());
+  dev->SetIdentification(readerId);
+
+  phy->SetMobility(node);
+  node->AggregateObject(mobility);
+  phy->SetChannel(channel);
+  phy->SetDevice(dev);
+  node->AddDevice(dev);
+
+  readerId->SetEquipement (rfid::READER);
+
+  dev->SetReceiveRfidCallback(MakeCallback(&RfidTestCaseChannel::Sink, this));
+  readerId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardRfidUp, dev));
+  phy->SetForwardUpCallback(MakeCallback (&rfid::ReaderIdentification::Receive, readerId));
+
+  Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
+      dev);
+  m_devices.push_back (dev);
+}
+
+void
+RfidTestCaseChannel::CreateTwo (Vector pos, Ptr<RfidChannel> channel)
 {
   Ptr<Node> node = CreateObject<Node>();
   Ptr<ConstantPositionMobilityModel> mobility = CreateObject<
@@ -82,22 +122,25 @@ RfidTestCaseChannel::CreateOne (Vector pos, Ptr<RfidChannel> channel)
 
   tagId->SetRfidPhy(phy);
   tagId->SetAddress(Mac16Address::Allocate());
-  dev->SetTagIdentification(tagId);
+  dev->SetIdentification(tagId);
 
   phy->SetMobility(node);
   node->AggregateObject(mobility);
   phy->SetChannel(channel);
   phy->SetDevice(dev);
   node->AddDevice(dev);
+  
+  tagId->SetEquipement (rfid::TAG);
 
-  dev->SetReceiveCallback(MakeCallback(&RfidTestCaseChannel::Sink, this));
-  tagId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardUp, dev));
+  dev->SetReceiveRfidCallback(MakeCallback(&RfidTestCaseChannel::Sink, this));
+  tagId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardRfidUp, dev));
   phy->SetForwardUpCallback(MakeCallback (&rfid::TagIdentification::Receive, tagId));
 
-  Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
-      dev);
+ /*Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
+      dev);*/
   m_devices.push_back (dev);
 }
+
 //
 // This method is the pure virtual method from class TestCase that every
 // TestCase must implement
@@ -108,9 +151,10 @@ RfidTestCaseChannel::DoRun (void)
   Ptr<RfidChannel> channel = CreateObject<RfidChannel>();
   uint32_t devicesN = channel->GetNDevices();
   NS_TEST_ASSERT_MSG_EQ(devicesN, 0, "O devices have been attached so far");
+  
   CreateOne(Vector(0.0, 0.0, 0.0), channel);
-  CreateOne(Vector(5.0, 0.0, 0.0), channel);
-  CreateOne(Vector(5.0, 0.0, 0.0), channel);
+  CreateTwo(Vector(5.0, 0.0, 0.0), channel);
+//  CreateOne(Vector(5.0, 0.0, 0.0), channel);
   Simulator::Run();
   Simulator::Destroy();
   Simulator::Stop(Seconds(10.0));

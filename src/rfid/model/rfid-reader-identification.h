@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2012 SMUNIX
+ * Copyright (c) 2012 ABID
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,11 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Providence M. SALUMU <Providence.Salumu@smunix.com>
+ * Author: ABID AYOUB <abid.ayoub@gmail.com>
  */
 
-#ifndef RFID_TAG_IDENTIFICATION_H_
-#define RFID_TAG_IDENTIFICATION_H_
+#ifndef RFID_READER_IDENTIFICATION_H_
+#define RFID_READER_IDENTIFICATION_H_
 
 #include <stdint.h>
 #include "ns3/callback.h"
@@ -27,23 +27,23 @@
 #include "rfid-identification.h"
 #include "ns3/mac16-address.h"
 
-
 namespace ns3
 {
   namespace rfid
   {
-   
-    class TagIdentification : public Identification
+
+    class ReaderIdentification : public Identification
     {
+    
     public:
       typedef Callback<void, Ptr<Packet>, uint16_t> ForwardUpCb;
     public:
       static TypeId
       GetTypeId (void);
 
-      TagIdentification(void);
+      ReaderIdentification(void);
       virtual
-      ~TagIdentification (void);
+      ~ReaderIdentification (void);
 
       virtual void
       SetAddress (Address address) ;
@@ -72,7 +72,8 @@ namespace ns3
       virtual int GetState (void) const ;
 
       virtual void NextStep (Ptr<Packet> packet, uint16_t header) ;
-   
+    private:
+      void AddEpcHeader (Ptr<Packet> packet,uint16_t m_header);
     private:
       ForwardUpCb m_forwardUp;
       Mac16Address m_address;
@@ -81,9 +82,11 @@ namespace ns3
       int m_eq;
       int m_sta;
       uint16_t m_header;
-      bool m_next;
+      bool m_first;
+      uint32_t m_dataSize;
+      uint8_t *m_data;
     };
   }
 }
 
-#endif /* RFID_TAG_IDENTIFICATION_H_ */
+#endif /* RFID_READER_IDENTIFICATION_H_ */

@@ -23,6 +23,8 @@
 #include "epc-header.h"
 #include "rfid-phy.h"
 #include "rfid-tag-identification.h"
+#include "ns3/packet.h"
+#include <iostream>
 
 NS_LOG_COMPONENT_DEFINE("RfidTagIdentification");
 
@@ -30,6 +32,7 @@ namespace ns3
 {
   namespace rfid
   {
+
     NS_OBJECT_ENSURE_REGISTERED(TagIdentification);
 
     TypeId
@@ -88,34 +91,83 @@ namespace ns3
       NS_LOG_FUNCTION(&cb);
       m_forwardUp = cb;
     }
-    bool TagIdentification::Send (Ptr<Packet> packet, const Address& dest,
-                uint16_t protocolNumber)
+
+    void
+    TagIdentification::SetEquipement (int eq)
     {
-      NS_LOG_FUNCTION ("packet=" << &packet << ", from=" << GetAddress() << ", to=" << dest << ", proto=" << protocolNumber);
-      AddEpcHeader (packet, GetAddress(), dest, protocolNumber);
+      m_eq=eq;
+      m_header = 0;
+      if (m_eq == TAG)
+      { 
+        SetState (IDLE_TAG);
+      }
+    
+    }
+    int
+    TagIdentification::GetEquipement (void) const
+    { 
+      return m_eq;
+    }
+
+    void
+    TagIdentification::SetState (int sta)
+    {
+      m_sta=sta;   
+    }
+    int
+    TagIdentification::GetState (void) const
+    {
+      return m_sta;
+    }
+
+
+
+
+   void
+    TagIdentification::NextStep (Ptr<Packet> packet, uint16_t header) 
+    {  
+      if (GetEquipement () == TAG )
+        { m_next = false;std::cout << "Idle1 " << m_eq << " " << m_sta << std::endl;
+                 switch ( header )
+                 {
+                  case (1000):
+                  if (GetState () == IDLE_TAG) { SetState(RN); m_next = true;}
+                  break;
+                  case (0001):
+                  if (GetState () == RN) {SetState(EPC); m_next = true;}
+                  break;
+                  default:
+                  SetState(IDLE_TAG);
+                  break; 
+                 }
+        if (m_next == true) 
+          {
+            Ptr<Packet> packet = Create<Packet>(0); Send(packet);
+          }
+        }
+      
+    }
+
+    bool TagIdentification::Send (Ptr<Packet> packet)
+    {
+      NS_LOG_FUNCTION ("packet=" << &packet);
+      std::cout << "Idle2 " << m_eq << " " << m_sta << std::endl;
       GetRfidPhy ()->Send (packet);
       return true;
     }
-    void
-    TagIdentification::AddEpcHeader (Ptr<Packet> packet, Address const &from, Address const &dest, uint16_t protocolNumber)
-    {
-      NS_LOG_FUNCTION ("packet=" << &packet << ", from=" << from << ", to=" << dest << ", proto=" << protocolNumber);
-      EpcHeader eh;
-      eh.SetFromAddress(Mac16Address::ConvertFrom(from));
-      eh.SetToAddress(Mac16Address::ConvertFrom(dest));
-      eh.SetProtocolNumber(protocolNumber);
-      packet->AddHeader(eh);
-    }
+ 
+
+
     void
     TagIdentification::Receive(Ptr<Packet> packet)
     {
       EpcHeader eh;
       packet->RemoveHeader(eh);
-      Mac16Address from = eh.GetFromAddress();
-      Mac16Address to = eh.GetToAddress();
-      uint16_t proto = eh.GetProtocolNumber();
-      NS_LOG_FUNCTION ("packet=" << packet << ", from=" << from << ", to=" << to << ", proto=" << proto);
-      m_forwardUp (packet, from, to, proto);
+      uint16_t m_header = eh.GetHeader();
+      //std::cout << GetAddress () << " got a message" << std::endl ;
+      NS_LOG_FUNCTION ("packet=" << packet << ", header=" << m_header);
+      m_forwardUp (packet, m_header);
+      NextStep(packet, m_header);
     }
   }
 }

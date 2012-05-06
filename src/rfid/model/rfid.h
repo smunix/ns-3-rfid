@@ -5,8 +5,9 @@
 #include "ns3/rfid-channel.h"
 #include "ns3/rfid-phy.h"
 #include "ns3/rfid-net-device.h"
+#include "ns3/rfid-identification.h"
 #include "ns3/rfid-tag-identification.h"
-
+#include "ns3/rfid-reader-identification.h"
 namespace ns3 {
 
 /* ... */
