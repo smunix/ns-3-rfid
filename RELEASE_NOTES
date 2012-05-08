@@ -32,10 +32,14 @@ New user-visible features
   i.e., enable/disable the ICMPv6 Redirect sending.
 - An antenna module is now included, which includes different
   radiation pattern models. See the corresponding new section of the
-  ns-3 models library documentation for details. 
-   
+  ns-3 models library documentation for details.
+- Longer and more descriptive names are used for error units in RateErrorModel
+  class and queue mode in Queue class. Attributs in those classes are also
+  changed for consistency. See API documentation for details.
+
 Bugs fixed
 ----------
+ - bug 962  - list of paths to reach objects contains bogus entries
  - bug 1313 - Stddev (average.h) returning NaN
  - bug 1319 - Fix Ipv6RawSocketImpl Icmpv6 filter
  - bug 1318 - Asserts for IPv6 malformed packets
