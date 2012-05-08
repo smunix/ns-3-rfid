@@ -71,9 +71,13 @@ namespace ns3
       virtual void SetState (int sta) ;
       virtual int GetState (void) const ;
 
-      virtual void NextStep (Ptr<Packet> packet, uint16_t header) ;
+      virtual void SetEquipementState (Ptr<Packet> packet, uint16_t header) ;
+      void SendQueryRep (Ptr<Packet> packet);
     private:
-      void AddEpcHeader (Ptr<Packet> packet,uint16_t m_header);
+      void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
+      uint16_t RemoveEpcHeader (Ptr<Packet> packet);
+      void SetInitialConfiguration (void);
+      
     private:
       ForwardUpCb m_forwardUp;
       Mac16Address m_address;
@@ -83,8 +87,7 @@ namespace ns3
       int m_sta;
       uint16_t m_header;
       bool m_first;
-      uint32_t m_dataSize;
-      uint8_t *m_data;
+      uint16_t m_q;
     };
   }
 }

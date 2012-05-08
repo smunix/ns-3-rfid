@@ -24,6 +24,8 @@
 #include "rfid-phy.h"
 #include "rfid-reader-identification.h"
 #include <iostream>
+#include <stdlib.h>
+
 
 NS_LOG_COMPONENT_DEFINE("RfidReaderIdentification");
 
@@ -95,7 +97,7 @@ namespace ns3
     ReaderIdentification::SetEquipement (int eq)
     {
       m_eq=eq;
-      m_header = 0;
+      m_header = 0x00;
       m_first = true;
       if (m_eq == READER)
       { 
@@ -120,7 +122,20 @@ namespace ns3
     }
 
     void
-    ReaderIdentification::NextStep (Ptr<Packet> packet, uint16_t header) 
+    ReaderIdentification::SetInitialConfiguration (void)
+    {
+      m_q = rand() % 0x01;
+    }
+
+    void
+    ReaderIdentification::SendQueryRep (Ptr<Packet> packet)
+    {
+      AddEpcHeader (packet,0x00);
+      Send (packet);
+    }
+
+    void
+    ReaderIdentification::SetEquipementState (Ptr<Packet> packet, uint16_t header) 
     {  std::cout << "Idle1 " << m_eq << " " << m_sta << std::endl;
       if (GetEquipement () == READER)
         {
@@ -128,17 +143,12 @@ namespace ns3
                  {
                   case (IDLE_READER):
                   SetState(QUERY);
-                  m_header=1000;
-/*m_dataSize = 5; m_data = "1100";
-//memcpy (m_data, "Hello", 5);
-packet = Create<Packet> (reinterpret_cast<uint8_t *> (m_data), m_dataSize);
-
-m_dataSize = 5; m_data = 1100;
-packet = Create<Packet> (m_data, m_dataSize);*/
+                  m_header=0x08;
+                  AddEpcHeader (packet,m_q); 
                   break;
                   case (QUERY):
                   SetState(ACK);
-                  m_header=0001;
+                  m_header=0x01;
                   break;
                   default:
                   SetState(IDLE_READER);
@@ -156,8 +166,8 @@ packet = Create<Packet> (m_data, m_dataSize);*/
       NS_LOG_FUNCTION ("packet=" << &packet);
 
       if (m_first == true ) 
-      {  
-        NextStep(packet, m_header);
+      { SetInitialConfiguration();
+        SetEquipementState(packet, m_header);
         std::cout << "Idle2 " << m_eq << " " << m_sta << std::endl;
         m_first = false ; GetRfidPhy ()->Send (packet); 
        }
@@ -170,21 +180,29 @@ packet = Create<Packet> (m_data, m_dataSize);*/
     }
  
  void
-    ReaderIdentification::AddEpcHeader (Ptr<Packet> packet, uint16_t m_header)
+    ReaderIdentification::AddEpcHeader (Ptr<Packet> packet, uint16_t header)
     {
-      NS_LOG_FUNCTION ("packet=" << &packet << ", header=" << m_header);
+      NS_LOG_FUNCTION ("packet=" << &packet << ", header=" << header);
       EpcHeader eh;
-      eh.SetHeader(m_header);
+      eh.SetHeader(header);
       packet->AddHeader(eh);
     }
 
+    uint16_t
+    ReaderIdentification::RemoveEpcHeader (Ptr<Packet> packet)
+    {
+      NS_LOG_FUNCTION ("packet=" << &packet);
+      EpcHeader eh;
+      packet->RemoveHeader(eh);
+      return eh.GetHeader();
+    }
 
     void
     ReaderIdentification::Receive(Ptr<Packet> packet)
-    {
+    { 
       //std::cout << GetAddress () << " got a message" << std::endl ;   
       m_forwardUp (packet, 0);
-      NextStep(packet, 0);
+      SetEquipementState(packet, 0);
     }
   }
 }

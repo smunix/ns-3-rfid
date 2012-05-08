@@ -24,7 +24,11 @@
 #include "rfid-phy.h"
 #include "rfid-tag-identification.h"
 #include "ns3/packet.h"
+#include "ns3/simulator.h"
+#include "rfid-reader-identification.h"
 #include <iostream>
+#include <stdlib.h>
+#include <math.h>
 
 NS_LOG_COMPONENT_DEFINE("RfidTagIdentification");
 
@@ -96,10 +100,11 @@ namespace ns3
     TagIdentification::SetEquipement (int eq)
     {
       m_eq=eq;
-      m_header = 0;
+      m_header = 0x00;
+      m_first = true;
       if (m_eq == TAG)
       { 
-        SetState (IDLE_TAG);
+        SetState (ARBITRATE);
       }
     
     }
@@ -121,28 +126,46 @@ namespace ns3
     }
 
 
-
+    void
+    TagIdentification::SetInitialConfiguration (void)
+    {
+      m_rn = rand () % 0xFFFF;
+    }
 
    void
-    TagIdentification::NextStep (Ptr<Packet> packet, uint16_t header) 
+    TagIdentification::SetEquipementState (Ptr<Packet> packet, uint16_t header) 
     {  
+      if (m_first == true ) { SetInitialConfiguration();}
       if (GetEquipement () == TAG )
         { m_next = false;std::cout << "Idle1 " << m_eq << " " << m_sta << std::endl;
                  switch ( header )
                  {
-                  case (1000):
-                  if (GetState () == IDLE_TAG) { SetState(RN); m_next = true;}
+                  case (0x08):
+                  if (m_first == true ) { m_slot_counter = pow (2, RemoveEpcHeader (packet)) - 1;  m_first = false;}
+                  if ( GetState () == ARBITRATE && m_slot_counter == 0 ) 
+                      { SetState(REPLY); m_next = true;SetInitialConfiguration(); AddEpcHeader (packet,m_rn);}
+                  else if ( m_slot_counter != 0) 
+                        { m_slot_counter -= 1; 
+                          // j'ai un problème avec cette fonction :(
+                         /* void (rfid::ReaderIdentification::*fp)(Ptr<Packet> packet) = &rfid::ReaderIdentification::SendQueryRep;
+                          Simulator::ScheduleNow(fp,Ptr<rfid::TagIdentification>, packet);*/
+                        }
                   break;
-                  case (0001):
-                  if (GetState () == RN) {SetState(EPC); m_next = true;}
+                  case (0x00):
+                  if ( GetState () == ARBITRATE && m_slot_counter == 0 ) 
+                      { SetState(REPLY); m_next = true; AddEpcHeader (packet,m_rn);}
+                  else if ( m_slot_counter != 0) { m_slot_counter -= 1;}
+                  break;
+                  case (0x01):
+                  if (GetState () == REPLY && RemoveEpcHeader (packet) == m_rn) {SetState(ACKNOWLEDGED); m_next = true;}
                   break;
                   default:
-                  SetState(IDLE_TAG);
+                  SetState(ARBITRATE);
                   break; 
                  }
         if (m_next == true) 
           {
-            Ptr<Packet> packet = Create<Packet>(0); Send(packet);
+            Send(packet);
           }
         }
       
@@ -156,18 +179,32 @@ namespace ns3
       return true;
     }
  
+    void
+    TagIdentification::AddEpcHeader (Ptr<Packet> packet, uint16_t header)
+    {
+      NS_LOG_FUNCTION ("packet=" << &packet << ", header=" << header);
+      EpcHeader eh;
+      eh.SetHeader(header);
+      packet->AddHeader(eh);
+    }
 
+    uint16_t
+    TagIdentification::RemoveEpcHeader (Ptr<Packet> packet)
+    {
+      NS_LOG_FUNCTION ("packet=" << &packet);
+      EpcHeader eh;
+      packet->RemoveHeader(eh);
+      return eh.GetHeader();
+    }
 
     void
     TagIdentification::Receive(Ptr<Packet> packet)
     {
-      EpcHeader eh;
-      packet->RemoveHeader(eh);
-      uint16_t m_header = eh.GetHeader();
-      //std::cout << GetAddress () << " got a message" << std::endl ;
+      m_header = RemoveEpcHeader (packet);
+      //std::cout << GetAddress () << " got a message" << std::endl ; 
       NS_LOG_FUNCTION ("packet=" << packet << ", header=" << m_header);
       m_forwardUp (packet, m_header);
-      NextStep(packet, m_header);
+      SetEquipementState(packet, m_header);
     }
   }
 }

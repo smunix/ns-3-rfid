@@ -82,24 +82,13 @@ namespace ns3
      */
     virtual void Print (std::ostream &os) const;
 
-    void SetFromAddress (Mac16Address const &address);
-    Mac16Address GetFromAddress (void) const;
 
-    void SetToAddress (Mac16Address const &address);
-    Mac16Address GetToAddress (void) const;
-
-    void SetProtocolNumber (uint16_t proto);
-    uint16_t GetProtocolNumber (void) const;
 
     void SetHeader (uint16_t header);
     uint16_t GetHeader (void) const;
+
   private:
-    void Write (Buffer::Iterator &i, Mac16Address const &ad) const;
-    void Read (Buffer::Iterator &i, Mac16Address &ad);
-  private:
-    Mac16Address m_from;
-    Mac16Address m_to;
-    uint16_t m_protocol;
+
     uint16_t m_header;
   };
 }

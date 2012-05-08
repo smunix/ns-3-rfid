@@ -39,9 +39,10 @@ namespace ns3
     
     enum TagStates 
     {
-    IDLE_TAG=0,
-    RN,
-    EPC
+    READY=0,
+    ARBITRATE,
+    REPLY,
+    ACKNOWLEDGED
     };
 
     enum ReaderStates 
@@ -89,7 +90,7 @@ namespace ns3
       virtual void SetState (int sta) = 0;
       virtual int GetState (void) const = 0;
 
-      virtual void NextStep (Ptr<Packet> packet, uint16_t header) = 0;
+      virtual void SetEquipementState (Ptr<Packet> packet, uint16_t header) = 0;
     };
   }
 }

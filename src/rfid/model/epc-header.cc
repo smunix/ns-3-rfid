@@ -60,65 +60,20 @@ namespace ns3
   EpcHeader::Serialize (Buffer::Iterator start) const
   {
     Buffer::Iterator i = start;
-    i.WriteHtonU16 (m_header);
+    i.WriteU16 (m_header);
   }
-  void
-  EpcHeader::Write(Buffer::Iterator &i, Mac16Address const &ad) const
-  {
-    Mac16Address::Buffer_t epc;
-    ad.CopyTo(epc);
-    i.Write(epc, Mac16Address::LENGTH);
-  }
-  void
-  EpcHeader::Read(Buffer::Iterator &i, Mac16Address &ad)
-  {
-    Mac16Address::Buffer_t epc;
-    i.Read(epc, Mac16Address::LENGTH);
-    ad.CopyFrom(epc);
-  }
+ 
   uint32_t
   EpcHeader::Deserialize (Buffer::Iterator start)
   {
     Buffer::Iterator i = start;
-    m_header = i.ReadNtohU16 ();
+    m_header = i.ReadU16 ();
     return GetSerializedSize();
   }
   void
   EpcHeader::Print (std::ostream &os) const
   {
     os << m_header;
-  }
-  void
-  EpcHeader::SetFromAddress (Mac16Address const &address)
-  {
-    m_to = address;
-  }
-  Mac16Address
-  EpcHeader::GetFromAddress (void) const
-  {
-    return m_from;
-  }
-
-  void
-  EpcHeader::SetToAddress (Mac16Address const &address)
-  {
-    m_to = address;
-  }
-  Mac16Address
-  EpcHeader::GetToAddress (void) const
-  {
-    return m_to;
-  }
-
-  void
-  EpcHeader::SetProtocolNumber (uint16_t proto)
-  {
-    m_protocol = proto;
-  }
-  uint16_t
-  EpcHeader::GetProtocolNumber (void) const
-  {
-    return m_protocol;
   }
   
   void
