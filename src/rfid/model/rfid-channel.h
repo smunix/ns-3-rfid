@@ -95,7 +95,7 @@ namespace ns3
       {
         if (this->m_p != arg)
           {
-            Simulator::ScheduleNow (&T::Recv, arg, m_pkt->Copy ());
+            Simulator::Schedule (MicroSeconds (25), &T::Recv, arg, m_pkt->Copy ());
           }
       }
     private:

@@ -26,6 +26,7 @@
 #include "ns3/packet.h"
 #include "rfid-identification.h"
 #include "ns3/mac16-address.h"
+#include "ns3/simulator.h"
 
 namespace ns3
 {
@@ -88,6 +89,7 @@ namespace ns3
       uint16_t m_header;
       bool m_first;
       uint16_t m_q;
+      bool m_receive;
     };
   }
 }

@@ -23,6 +23,7 @@
 #include "rfid-phy.h"
 #include "rfid-channel.h"
 #include "rfid-net-device.h"
+#include "ns3/simulator.h"
 
 NS_LOG_COMPONENT_DEFINE("RfidPhy");
 

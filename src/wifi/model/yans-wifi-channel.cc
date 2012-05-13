@@ -29,6 +29,7 @@
 #include "yans-wifi-phy.h"
 #include "ns3/propagation-loss-model.h"
 #include "ns3/propagation-delay-model.h"
+#include <iostream>
 
 NS_LOG_COMPONENT_DEFINE ("YansWifiChannel");
 
@@ -77,7 +78,7 @@ YansWifiChannel::SetPropagationDelayModel (Ptr<PropagationDelayModel> delay)
 void
 YansWifiChannel::Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double txPowerDbm,
                        WifiMode wifiMode, WifiPreamble preamble) const
-{
+{Ptr<MobilityModel> sen = sender ->GetDevice ()->GetObject<NetDevice> ()->GetNode ()->GetObject<MobilityModel> ();
   Ptr<MobilityModel> senderMobility = sender->GetMobility ()->GetObject<MobilityModel> ();
   NS_ASSERT (senderMobility != 0);
   uint32_t j = 0;
@@ -92,7 +93,7 @@ YansWifiChannel::Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double
             }
 
           Ptr<MobilityModel> receiverMobility = (*i)->GetMobility ()->GetObject<MobilityModel> ();
-          Time delay = m_delay->GetDelay (senderMobility, receiverMobility);
+          Time delay = m_delay->GetDelay (senderMobility, receiverMobility); std::cout << " Delay " << delay << std::endl ; 
           double rxPowerDbm = m_loss->CalcRxPower (txPowerDbm, senderMobility, receiverMobility);
           NS_LOG_DEBUG ("propagation: txPower=" << txPowerDbm << "dbm, rxPower=" << rxPowerDbm << "dbm, " <<
                         "distance=" << senderMobility->GetDistanceFrom (receiverMobility) << "m, delay=" << delay);

@@ -23,8 +23,11 @@
 #include "epc-header.h"
 #include "rfid-phy.h"
 #include "rfid-reader-identification.h"
+#include "ns3/simulator.h"
+
 #include <iostream>
 #include <stdlib.h>
+
 
 
 NS_LOG_COMPONENT_DEFINE("RfidReaderIdentification");
@@ -99,6 +102,7 @@ namespace ns3
       m_eq=eq;
       m_header = 0x00;
       m_first = true;
+      m_receive = true; 
       if (m_eq == READER)
       { 
         SetState (IDLE_READER);
@@ -124,19 +128,22 @@ namespace ns3
     void
     ReaderIdentification::SetInitialConfiguration (void)
     {
-      m_q = rand() % 0x01;
+      m_q = rand() % 0x0F; std::cout << " ***m_q*** " << m_q << std::endl ; 
     }
 
     void
     ReaderIdentification::SendQueryRep (Ptr<Packet> packet)
-    {
-      AddEpcHeader (packet,0x00);
-      Send (packet);
+    { 
+      if (m_receive == false ) 
+      {  std::cout << " ******** Retransmission ******** " << std::endl;
+        AddEpcHeader (packet,0x00);
+        Send (packet);
+      }
     }
 
     void
     ReaderIdentification::SetEquipementState (Ptr<Packet> packet, uint16_t header) 
-    {  std::cout << "Idle1 " << m_eq << " " << m_sta << std::endl;
+    {  std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
       if (GetEquipement () == READER)
         {
                  switch (GetState ())
@@ -152,7 +159,7 @@ namespace ns3
                   break;
                   default:
                   SetState(IDLE_READER);
-                  std::cout << "Idle2 " << m_eq << " " << m_sta << std::endl;
+                  std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
                   break; 
                  }
         AddEpcHeader (packet,m_header); 
@@ -162,20 +169,26 @@ namespace ns3
     }
 
     bool ReaderIdentification::Send (Ptr<Packet> packet)
-    {
+    { 
       NS_LOG_FUNCTION ("packet=" << &packet);
 
       if (m_first == true ) 
-      { SetInitialConfiguration();
+      { 
+        SetInitialConfiguration();
         SetEquipementState(packet, m_header);
-        std::cout << "Idle2 " << m_eq << " " << m_sta << std::endl;
-        m_first = false ; GetRfidPhy ()->Send (packet); 
+        std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
+        m_first = false ;
+        m_receive = false ; 
+        GetRfidPhy ()->Send (packet);
        }
           else if ( !(m_sta == IDLE_READER && m_eq == READER) ) 
                 {
-                  std::cout << "Idle2 " << m_eq << " " << m_sta << std::endl; 
+                  std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
+                  m_receive = false ;
                   GetRfidPhy ()->Send (packet);
+                  
                 }
+       Simulator::Schedule (NanoSeconds (51001), &ReaderIdentification::SendQueryRep , this , packet);
       return true;
     }
  
@@ -200,9 +213,10 @@ namespace ns3
     void
     ReaderIdentification::Receive(Ptr<Packet> packet)
     { 
+      m_receive = true ; 
       //std::cout << GetAddress () << " got a message" << std::endl ;   
-      m_forwardUp (packet, 0);
-      SetEquipementState(packet, 0);
+      m_forwardUp (packet, -1);
+      Simulator::Schedule ( MicroSeconds (1), &ReaderIdentification::SetEquipementState , this , packet, 0);
     }
   }
 }
