@@ -72,6 +72,9 @@ namespace ns3
       virtual int GetState (void) const ;
 
       virtual void SetEquipementState (Ptr<Packet> packet, uint16_t header) ;
+     
+      virtual void SetReceiving (bool rcv);
+      virtual bool GetReceiving (void) const;
    
     private:
       void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
@@ -89,6 +92,9 @@ namespace ns3
       bool m_next;
       bool m_first;
       uint16_t m_slot_counter;
+      double m_duration;
+      int m_preamble;
+      bool m_rcv;
     };
   }
 }

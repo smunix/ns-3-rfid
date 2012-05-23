@@ -23,7 +23,11 @@
 #include "rfid-phy.h"
 #include "rfid-channel.h"
 #include "rfid-net-device.h"
+#include "rfid-phy-state.h"
 #include "ns3/simulator.h"
+#include "ns3/pointer.h"
+#include <iostream>
+
 
 NS_LOG_COMPONENT_DEFINE("RfidPhy");
 
@@ -34,8 +38,18 @@ namespace ns3
   TypeId
   RfidPhy::GetTypeId(void)
   {
-    static TypeId tid = TypeId("ns3::RfidPhy").SetParent<Object>().AddConstructor<RfidPhy> ();
+    static TypeId tid = TypeId("ns3::RfidPhy").SetParent<Object>().AddConstructor<RfidPhy> ()
+    .AddAttribute ("State", "The state of the PHY layer",
+                   PointerValue (),
+                   MakePointerAccessor (&RfidPhy::m_state),
+                   MakePointerChecker<RfidPhyState> ());
     return tid;
+  }
+
+  RfidPhy::RfidPhy(void)
+  {
+    NS_LOG_FUNCTION_NOARGS ();
+    m_state = CreateObject <RfidPhyState>();
   }
 
   RfidPhy::~RfidPhy(void)
@@ -84,13 +98,22 @@ namespace ns3
     return m_mobility;
   }
   void
-  RfidPhy::Send(Ptr<Packet> pkt)
+  RfidPhy::Send(Ptr<Packet> pkt ,double duration)
   {
     NS_LOG_FUNCTION (pkt);
+    SetDuration (duration);
+    m_state ->SwitchToTx ( MicroSeconds (duration));
     m_channel->Send (pkt, this);
   }
   void
-  RfidPhy::Recv (Ptr<Packet> pkt)
+  RfidPhy::StartRecv (Ptr<Packet> pkt ,double duration )
+  {
+    NS_LOG_FUNCTION (pkt);
+    if (m_state -> IsStateIdle ()) { m_state ->SwitchToRx ( MicroSeconds (duration));Simulator::Schedule ( MicroSeconds (duration), &RfidPhy::EndRecv, this, pkt);m_receiving(true);}
+      else  std::cout << " *************** collision *************** " << std::endl;
+  }
+  void
+  RfidPhy::EndRecv (Ptr<Packet> pkt)
   {
     NS_LOG_FUNCTION (pkt);
     m_forwardUp (pkt);
@@ -100,4 +123,20 @@ namespace ns3
   {
     m_forwardUp = cb;
   }
+  void
+  RfidPhy::SetReceivingCallback (ReceivingCb cb)
+  {
+    m_receiving = cb;
+  }
+  void 
+  RfidPhy::SetDuration ( double duration)
+  {
+    m_duration = duration;
+  }
+  double
+  RfidPhy::GetDuration (void) const
+  {
+    return m_duration;
+  }
+
 }

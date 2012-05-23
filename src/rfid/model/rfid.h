@@ -8,6 +8,8 @@
 #include "ns3/rfid-identification.h"
 #include "ns3/rfid-tag-identification.h"
 #include "ns3/rfid-reader-identification.h"
+#include "rfid-configuration.h"
+
 namespace ns3 {
 
 /* ... */

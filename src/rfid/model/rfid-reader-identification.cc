@@ -24,6 +24,8 @@
 #include "rfid-phy.h"
 #include "rfid-reader-identification.h"
 #include "ns3/simulator.h"
+#include "rfid-preamble.h"
+#include "ns3/double.h"
 
 #include <iostream>
 #include <stdlib.h>
@@ -42,7 +44,20 @@ namespace ns3
     TypeId
     ReaderIdentification::GetTypeId (void)
     {
-      static TypeId tid = TypeId("ns3::rfid::ReaderIdentification").SetParent<Object>().AddConstructor<ReaderIdentification> ();
+      static TypeId tid = TypeId("ns3::rfid::ReaderIdentification")
+        .SetParent<Object>()
+        .AddConstructor<ReaderIdentification> ()
+        .AddAttribute ("Divide Ratio",
+                   "equal to 8 or 64/3",
+                   DoubleValue (8.0),
+                   MakeDoubleAccessor (&ReaderIdentification::m_dr),
+                   MakeDoubleChecker<double> ())
+        .AddAttribute ("Modulation",
+                   "equal to 1, 2, 4 or 8",
+                   DoubleValue (1.0),
+                   MakeDoubleAccessor (&ReaderIdentification::m_m),
+                   MakeDoubleChecker<double> ())             
+;
       return tid;
     }
     ReaderIdentification::ReaderIdentification (void)
@@ -102,7 +117,10 @@ namespace ns3
       m_eq=eq;
       m_header = 0x00;
       m_first = true;
-      m_receive = true; 
+      SetReceiving (true);
+      m_tag_number = 0;
+      m_conf.SetM(m_m);
+      m_conf.SetDR(m_dr);
       if (m_eq == READER)
       { 
         SetState (IDLE_READER);
@@ -128,22 +146,29 @@ namespace ns3
     void
     ReaderIdentification::SetInitialConfiguration (void)
     {
-      m_q = rand() % 0x0F; std::cout << " ***m_q*** " << m_q << std::endl ; 
+      m_q = rand() % 0x10; std::cout << " ***m_q*** " << m_q << std::endl ; 
     }
 
     void
     ReaderIdentification::SendQueryRep (Ptr<Packet> packet)
     { 
-      if (m_receive == false ) 
-      {  std::cout << " ******** Retransmission ******** " << std::endl;
-        AddEpcHeader (packet,0x00);
+      if (!GetReceiving ()) 
+      {  
+        std::cout << " ******** Retransmission ******** " << std::endl;
+        m_duration = 0;
+        SetState(QUERY_REP);
+        m_header = 0x00;
+        m_duration = GetPacketDuration ( 2 , m_header) + m_conf.GetFrameSyncDuration ();
+        AddEpcHeader (packet,m_header);
         Send (packet);
       }
     }
 
     void
     ReaderIdentification::SetEquipementState (Ptr<Packet> packet, uint16_t header) 
-    {  std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
+    { 
+      m_duration = 0 ; 
+      std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
       if (GetEquipement () == READER)
         {
                  switch (GetState ())
@@ -151,19 +176,38 @@ namespace ns3
                   case (IDLE_READER):
                   SetState(QUERY);
                   m_header=0x08;
+                  m_duration += GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 4 , m_q);
                   AddEpcHeader (packet,m_q); 
+                  m_preamble = RFID_PREAMBLE;
                   break;
                   case (QUERY):
                   SetState(ACK);
                   m_header=0x01;
+                  m_duration += GetPacketDuration ( 2 , m_header) + GetPacketDuration ( 16 , RemoveEpcHeader( packet-> Copy ()));
+                  m_preamble = RFID_FRAME_SYNC;
+                  break;
+                  case (QUERY_REP):
+                  SetState(ACK);
+                  m_header=0x01;
+                  m_duration += GetPacketDuration ( 2 , m_header) + GetPacketDuration ( 16 , RemoveEpcHeader( packet-> Copy ()));
+                  m_preamble = RFID_FRAME_SYNC;
                   break;
                   default:
-                  SetState(IDLE_READER);
+                  SetState(QUERY_REP);
+                  m_tag_number += 1; 
+                  std::cout << "************************ " << m_tag_number << " tags are identified ************************" << std::endl;
+                  Ptr<Packet> p = Create <Packet> ();
                   std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
+                  SetReceiving (false);
+                  if (m_tag_number != GetTagNumber ()) {SendQueryRep (p);}
                   break; 
                  }
-        AddEpcHeader (packet,m_header); 
-        if (m_first == false) {Send(packet);}
+        if (GetState () != QUERY_REP )
+           {  
+                AddEpcHeader (packet,m_header); 
+                m_duration += (m_preamble == RFID_PREAMBLE) ? m_conf.GetPreambleDuration () : m_conf.GetFrameSyncDuration (); 
+                if (m_first != true) {Send(packet);}
+           }
         }
       
     }
@@ -171,24 +215,23 @@ namespace ns3
     bool ReaderIdentification::Send (Ptr<Packet> packet)
     { 
       NS_LOG_FUNCTION ("packet=" << &packet);
-
       if (m_first == true ) 
       { 
         SetInitialConfiguration();
         SetEquipementState(packet, m_header);
         std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
         m_first = false ;
-        m_receive = false ; 
-        GetRfidPhy ()->Send (packet);
+        SetReceiving (false); 
+        GetRfidPhy ()->Send (packet ,m_duration );
        }
-          else if ( !(m_sta == IDLE_READER && m_eq == READER) ) 
+          else if ( !(m_tag_number == GetTagNumber () && m_eq == READER) ) 
                 {
                   std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
-                  m_receive = false ;
-                  GetRfidPhy ()->Send (packet);
+                  SetReceiving (false);
+                  GetRfidPhy ()->Send (packet ,m_duration );
                   
                 }
-       Simulator::Schedule (NanoSeconds (51001), &ReaderIdentification::SendQueryRep , this , packet);
+      m_id = Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &ReaderIdentification::SendQueryRep , this , packet);
       return true;
     }
  
@@ -213,11 +256,22 @@ namespace ns3
     void
     ReaderIdentification::Receive(Ptr<Packet> packet)
     { 
-      m_receive = true ; 
-      //std::cout << GetAddress () << " got a message" << std::endl ;   
+      Simulator::Cancel (m_id);   
       m_forwardUp (packet, -1);
-      Simulator::Schedule ( MicroSeconds (1), &ReaderIdentification::SetEquipementState , this , packet, 0);
+      SetEquipementState ( packet, 0);
     }
+
+    void 
+    ReaderIdentification::SetReceiving (bool rcv)
+    {
+      m_rcv = rcv;
+    }
+    bool 
+    ReaderIdentification::GetReceiving (void) const
+    {
+      return m_rcv;
+    }
+
   }
 }
 

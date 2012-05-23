@@ -22,8 +22,7 @@
 #include "rfid-net-device.h"
 #include "rfid-phy.h"
 #include "rfid-channel.h"
-#include "ns3/constant-position-mobility-model.h"
-
+#include "rfid-identification.h"
 
 NS_LOG_COMPONENT_DEFINE("RfidChannel");
 
@@ -73,10 +72,6 @@ namespace ns3
   RfidChannel::Send (Ptr<Packet> pkt, Ptr<RfidPhy> phy)
   {
     NS_LOG_FUNCTION ("packet=" << pkt << ", phy=" << phy);
-    // j'éssai dde claculer le delay en fonction de la position des noeuds 
-    // j'ai un problème à ce niveau là , j'obtiens cette erreur 
-    //./libns3-dev-rfid-debug.so: undefined reference to `ns3::MobilityModel::GetTypeId()'  collect2: ld returned 1 exit status
-    //Ptr<MobilityModel> senderMobility = phy->GetMobility ()->GetObject<MobilityModel> ();
     Sender<RfidPhy> s = MakeSender (phy, pkt);
     std::for_each(m_phys.begin(), m_phys.end(), s);
     
@@ -91,5 +86,7 @@ namespace ns3
       m_phys.push_back(phy);
     }
   }
+ 
 } // namespace ns3
+
 

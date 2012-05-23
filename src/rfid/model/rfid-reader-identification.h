@@ -27,6 +27,8 @@
 #include "rfid-identification.h"
 #include "ns3/mac16-address.h"
 #include "ns3/simulator.h"
+#include "rfid-configuration.h"
+
 
 namespace ns3
 {
@@ -73,6 +75,10 @@ namespace ns3
       virtual int GetState (void) const ;
 
       virtual void SetEquipementState (Ptr<Packet> packet, uint16_t header) ;
+
+      virtual void SetReceiving (bool rcv);
+      virtual bool GetReceiving (void) const;      
+
       void SendQueryRep (Ptr<Packet> packet);
     private:
       void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
@@ -89,7 +95,14 @@ namespace ns3
       uint16_t m_header;
       bool m_first;
       uint16_t m_q;
-      bool m_receive;
+      bool m_rcv;
+      EventId m_id;
+      double m_duration;
+      int m_preamble ;
+      int m_tag_number;
+      RfidConfiguration m_conf;
+      double m_m;
+      double m_dr;
     };
   }
 }

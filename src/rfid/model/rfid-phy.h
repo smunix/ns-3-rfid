@@ -25,17 +25,22 @@
 #include "ns3/callback.h"
 #include "ns3/packet.h"
 #include "ns3/object.h"
+#include "rfid-phy-state.h"
+
 
 namespace ns3
 {
   class RfidPhy : public Object
   {
+
   public:
     typedef Callback<void, Ptr<Packet> > ForwardUpCb;
+    typedef Callback<void, bool> ReceivingCb;
   public:
     static TypeId
     GetTypeId(void);
-
+    
+    RfidPhy (void);
     virtual ~RfidPhy (void);
     virtual void SetChannel (Ptr<class RfidChannel> channel);
     virtual Ptr<class RfidChannel> GetChannel (void) const;
@@ -43,15 +48,23 @@ namespace ns3
     virtual Ptr<class RfidNetDevice> GetDevice (void) const;
     virtual void SetMobility (Ptr<Object> mobility);
     virtual Ptr<Object> GetMobility (void) const;
-    virtual void Send (Ptr<Packet> pkt);
-    virtual void Recv (Ptr<Packet> pkt);
+    virtual void Send (Ptr<Packet> pkt, double duration);
+    virtual void StartRecv (Ptr<Packet> pkt, double duration);
+    virtual void EndRecv (Ptr<Packet> pkt);
 
     void SetForwardUpCallback (ForwardUpCb cb);
+    void SetReceivingCallback (ReceivingCb cb);
+
+    void SetDuration ( double duration);
+    double GetDuration (void) const;
   private:
     Ptr<class RfidChannel> m_channel;
     Ptr<class RfidNetDevice> m_device;
     Ptr<Object> m_mobility;
     ForwardUpCb m_forwardUp;
+    ReceivingCb m_receiving;
+    Ptr<class RfidPhyState> m_state;
+    double m_duration;
   };
 }
 

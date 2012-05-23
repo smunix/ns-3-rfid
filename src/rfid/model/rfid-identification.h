@@ -49,7 +49,8 @@ namespace ns3
     {
     IDLE_READER=0,
     QUERY,
-    ACK
+    ACK,
+    QUERY_REP
     };
 
     class Identification : public Object
@@ -91,6 +92,17 @@ namespace ns3
       virtual int GetState (void) const = 0;
 
       virtual void SetEquipementState (Ptr<Packet> packet, uint16_t header) = 0;
+
+      virtual void SetReceiving (bool rcv) = 0;
+      virtual bool GetReceiving (void) const = 0;
+
+      double GetPacketDuration ( int size, uint32_t packet);
+
+      void SetTagNumber (int tag);
+      int GetTagNumber (void) const ;
+
+   private:
+     int m_tagNumber;
     };
   }
 }

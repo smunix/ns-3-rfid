@@ -20,6 +20,8 @@
 
 #include "ns3/log.h"
 #include "rfid-identification.h"
+#include "rfid-configuration.h"
+
 NS_LOG_COMPONENT_DEFINE("RfidIdentification");
 
 namespace ns3
@@ -39,6 +41,35 @@ namespace ns3
     {
       NS_LOG_FUNCTION_NOARGS();
     } 
+
+    double
+    Identification::GetPacketDuration ( int size, uint32_t packet)
+    {
+      RfidConfiguration conf;
+      int counter = 0;
+      double duration = 0;
+      while (packet != 0 )
+       {
+         duration += (packet % 2) ? conf.GetData1 () : conf.GetData0 () ;
+         packet /=2;
+         counter +=1;
+       }    
+      if (counter < size ) 
+       { 
+         duration += (size - counter) * conf.GetData0 ();
+       }
+      return duration;
+    }
+    void 
+    Identification::SetTagNumber (int tagNumber)
+    {
+      m_tagNumber = tagNumber;
+    }
+    int 
+    Identification::GetTagNumber (void) const 
+    {
+      return m_tagNumber;
+    }
   }
 }
 

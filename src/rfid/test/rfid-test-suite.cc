@@ -10,8 +10,8 @@
 #include "ns3/node.h"
 #include "ns3/object-factory.h"
 #include "ns3/constant-position-mobility-model.h"
-
 #include <iostream>
+
 
 #  define DO_LOG(x) do { std::cout << x << std::endl; } while (false)
 
@@ -43,7 +43,8 @@ private:
   ObjectFactory m_tagIdentification;
   ObjectFactory m_readerIdentification;
   uint16_t m_count;
-  
+  uint16_t m_tagNumber;  
+
 };
 
 // Add some help text to this case to describe what it is intended to test
@@ -53,6 +54,7 @@ RfidTestCaseChannel::RfidTestCaseChannel () :
   m_tagIdentification.SetTypeId("ns3::rfid::TagIdentification");
   m_readerIdentification.SetTypeId("ns3::rfid::ReaderIdentification");
   m_count = 0;
+  m_tagNumber = 0;
 }
 
 // This destructor does nothing but we include it as a reminder that
@@ -97,14 +99,17 @@ RfidTestCaseChannel::CreateOne (Vector pos, Ptr<RfidChannel> channel)
   node->AddDevice(dev);
 
   readerId->SetEquipement (rfid::READER);
+  readerId->SetTagNumber (m_tagNumber);
 
   dev->SetReceiveRfidCallback(MakeCallback(&RfidTestCaseChannel::Sink, this));
   readerId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardRfidUp, dev));
   phy->SetForwardUpCallback(MakeCallback (&rfid::ReaderIdentification::Receive, readerId));
+  phy->SetReceivingCallback(MakeCallback (&rfid::ReaderIdentification::SetReceiving, readerId));
 
   Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
       dev);
   m_devices.push_back (dev);
+  
 }
 
 void
@@ -135,10 +140,11 @@ RfidTestCaseChannel::CreateTwo (Vector pos, Ptr<RfidChannel> channel)
   dev->SetReceiveRfidCallback(MakeCallback(&RfidTestCaseChannel::Sink, this));
   tagId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardRfidUp, dev));
   phy->SetForwardUpCallback(MakeCallback (&rfid::TagIdentification::Receive, tagId));
-
+  phy->SetReceivingCallback(MakeCallback (&rfid::TagIdentification::SetReceiving, tagId));
  /*Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
       dev);*/
   m_devices.push_back (dev);
+  m_tagNumber++;
 }
 
 //
@@ -152,9 +158,11 @@ RfidTestCaseChannel::DoRun (void)
   uint32_t devicesN = channel->GetNDevices();
   NS_TEST_ASSERT_MSG_EQ(devicesN, 0, "O devices have been attached so far");
   
-  CreateOne(Vector(0.0, 0.0, 0.0), channel);
+
   CreateTwo(Vector(5.0, 0.0, 0.0), channel);
-//  CreateOne(Vector(5.0, 0.0, 0.0), channel);
+  CreateTwo(Vector(10.0, 0.0, 0.0), channel);
+  CreateOne(Vector(0.0, 0.0, 0.0), channel);
+ // CreateTwo(Vector(15.0, 0.0, 0.0), channel);
   Simulator::Run();
   Simulator::Destroy();
   Simulator::Stop(Seconds(10.0));

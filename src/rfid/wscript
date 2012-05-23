@@ -7,16 +7,18 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('rfid', ['core', 'network', 'applications'])
+    module = bld.create_ns3_module('rfid', ['core', 'network', 'mobility','applications', 'propagation'])
     module.source = [
         'model/rfid.cc',
         'model/rfid-channel.cc',
         'model/rfid-phy.cc',
+        'model/rfid-phy-state.cc',
         'model/rfid-tag-identification.cc',
         'model/rfid-reader-identification.cc',
         'model/rfid-identification.cc',
         'model/rfid-net-device.cc',
         'model/epc-header.cc',
+        'model/rfid-configuration.cc',
         'helper/rfid-helper.cc',
         ]
 
@@ -31,11 +33,14 @@ def build(bld):
         'model/rfid.h',
         'model/rfid-channel.h',
         'model/rfid-phy.h',
+        'model/rfid-phy-state.h',
         'model/rfid-tag-identification.h',
         'model/rfid-reader-identification.h',
         'model/rfid-identification.h',
         'model/rfid-net-device.h',
         'model/epc-header.h',
+        'model/rfid-configuration.h',
+        'model/rfid-preamble.h',
         'helper/rfid-helper.h',
         ]
 

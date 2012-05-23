@@ -24,8 +24,13 @@
 #include "ns3/channel.h"
 #include "ns3/packet.h"
 #include "ns3/simulator.h"
+#include "ns3/node.h"
+#include "rfid-net-device.h"
+#include "ns3/propagation-delay-model.h"
+#include "ns3/mobility-model.h"
 #include <vector>
 #include <algorithm>
+#include <iostream>
 
 namespace ns3
 {
@@ -68,6 +73,7 @@ namespace ns3
 
     virtual void
     Send (Ptr<class Packet> pkt, Ptr<class RfidPhy> phy);
+
   private:
     template<typename T, typename R = bool>
     struct Unary : public std::unary_function<Ptr<T>, R>
@@ -86,16 +92,29 @@ namespace ns3
       typedef Unary<T, R> UF;
       typedef typename UF::result_type result_type;
       typedef typename UF::argument_type argument_type;
+      int m_sender_equip;
+      int m_receiver_equip;
+      Ptr<MobilityModel> m_sender_mobility;
+      Ptr<MobilityModel> m_receiver_mobility;
+      Ptr<ConstantSpeedPropagationDelayModel> m_delay;
+      double m_duration;
       void Set (argument_type const &p, Ptr<Packet> pkt)
       {
         UF::Set (p);
         m_pkt = pkt;
+        m_sender_equip = p->GetDevice ()->GetObject<RfidNetDevice> ()->GetIdentification()->GetObject<rfid::Identification> ()->GetEquipement();
+        m_sender_mobility = p ->GetDevice ()->GetObject<RfidNetDevice> ()->GetNode ()->GetObject<MobilityModel> ();
+        m_delay = CreateObject <ConstantSpeedPropagationDelayModel> ();
+        m_duration = p -> GetDuration ();
       }
       result_type operator() (argument_type const &arg)
       {
-        if (this->m_p != arg)
+        m_receiver_equip = arg->GetDevice ()->GetObject<RfidNetDevice> ()->GetIdentification()->GetObject<rfid::Identification> ()->GetEquipement();
+        if (this->m_p != arg && m_sender_equip != m_receiver_equip)
           {
-            Simulator::Schedule (MicroSeconds (25), &T::Recv, arg, m_pkt->Copy ());
+            m_receiver_mobility = arg ->GetDevice ()->GetObject<RfidNetDevice> ()->GetNode ()->GetObject<MobilityModel> ();
+            Time delay = m_delay->GetDelay (m_sender_mobility, m_receiver_mobility);  
+            Simulator::Schedule (delay, &T::StartRecv, arg, m_pkt->Copy (), m_duration);
           }
       }
     private:

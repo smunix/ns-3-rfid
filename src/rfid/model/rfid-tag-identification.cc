@@ -25,8 +25,8 @@
 #include "rfid-tag-identification.h"
 #include "ns3/packet.h"
 #include "ns3/simulator.h"
-#include "rfid-reader-identification.h"
-#include "ns3/simulator.h"
+#include "rfid-preamble.h"
+
 
 #include <iostream>
 #include <stdlib.h>
@@ -131,12 +131,13 @@ namespace ns3
     void
     TagIdentification::SetInitialConfiguration (void)
     {
-      m_rn = rand () % 0xFFFF;
+      m_rn = rand () % 0xFFFF; std::cout << " rn " << m_rn << std::endl;
     }
 
    void
     TagIdentification::SetEquipementState (Ptr<Packet> packet, uint16_t header) 
     {  
+      m_duration = 0 ;
       if (m_first == true ) { SetInitialConfiguration();}
       if (GetEquipement () == TAG )
         { m_next = false;std::cout << "Tag_Statut " << m_eq << " " << m_sta << std::endl;
@@ -149,24 +150,49 @@ namespace ns3
                           if (  m_slot_counter != 0) { m_slot_counter = rand () % (m_slot_counter + 1) ;  }
                           m_first = false;
                         }
-
                   if ( GetState () == ARBITRATE && m_slot_counter == 0 ) 
-                      { SetState(REPLY); m_next = true; AddEpcHeader (packet,m_rn); }
+                      { 
+                        SetState(REPLY); 
+                        m_next = true; 
+                        AddEpcHeader (packet,m_rn); 
+                        m_duration += GetPacketDuration ( 16 , m_rn);
+                        m_preamble = RFID_PREAMBLE;
+                      }
                   std::cout << " slot counter " << m_slot_counter << std::endl;
                   break;
+
                   case (0x00):
                   m_slot_counter -= 1;
                   if ( GetState () == ARBITRATE && m_slot_counter == 0 ) 
-                      { SetState(REPLY); m_next = true; AddEpcHeader (packet,m_rn);}
+                      { 
+                        SetState(REPLY); 
+                        m_next = true; 
+                        AddEpcHeader (packet,m_rn); 
+                        m_duration += GetPacketDuration ( 16 , m_rn);
+                        m_preamble = RFID_FRAME_SYNC;
+                      }
                   std::cout << " slot counter " << m_slot_counter << std::endl;
                   break;
+
                   case (0x01):
-                  if (GetState () == REPLY && RemoveEpcHeader (packet) == m_rn) {SetState(ACKNOWLEDGED); m_next = true;}
+                  if ( GetState () == REPLY)
+                    {
+                      if (RemoveEpcHeader (packet) == m_rn) 
+                       { 
+                         SetState(ACKNOWLEDGED); 
+                         m_next = true;
+                         m_preamble = RFID_PREAMBLE;
+                       }
+                      else std::cout << " ******** Not Matching Random Number ******** " << std::endl;
+                     }
+                     else std::cout << " ******** Not Matching Message ******** " << std::endl;
                   break;
+
                   default:
                   SetState(ARBITRATE);
                   break; 
                  }
+        m_duration += (m_preamble == RFID_PREAMBLE) ? 150 : 125;
         if (m_next == true) 
           {
             Send(packet);
@@ -180,7 +206,7 @@ namespace ns3
     {
       NS_LOG_FUNCTION ("packet=" << &packet);
       std::cout << "Tag_Statut " << m_eq << " " << m_sta << std::endl;
-      GetRfidPhy ()->Send (packet);
+      GetRfidPhy ()->Send (packet ,m_duration );
       return true;
     }
  
@@ -206,11 +232,22 @@ namespace ns3
     TagIdentification::Receive(Ptr<Packet> packet)
     {
       m_header = RemoveEpcHeader (packet);
-      //std::cout << GetAddress () << " got a message" << std::endl ; 
       NS_LOG_FUNCTION ("packet=" << packet << ", header=" << m_header);
       m_forwardUp (packet, m_header);
-      Simulator::Schedule ( MicroSeconds (1), &TagIdentification::SetEquipementState , this , packet, m_header);
+      SetEquipementState ( packet, m_header);
     }
+    
+        void 
+    TagIdentification::SetReceiving (bool rcv)
+    {
+      m_rcv = rcv;
+    }
+    bool 
+    TagIdentification::GetReceiving (void) const
+    {
+      return m_rcv;
+    }
+
   }
 }
 
