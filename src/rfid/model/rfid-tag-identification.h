@@ -26,6 +26,7 @@
 #include "ns3/packet.h"
 #include "rfid-identification.h"
 #include "ns3/mac16-address.h"
+#include "rfid-configuration.h"
 
 
 namespace ns3
@@ -79,7 +80,17 @@ namespace ns3
     private:
       void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
       uint16_t RemoveEpcHeader (Ptr<Packet> packet);
+
       void SetInitialConfiguration (void);
+      uint16_t CalculateSlotCounter (uint16_t q);
+
+      Ptr<Packet> GenerateRnMessage (Ptr<Packet> packet);
+      Ptr<Packet> SetResponseToQuery ( Ptr<Packet> packet);
+      Ptr<Packet> SetResponseToQueryRep ( Ptr<Packet> packet);
+      Ptr<Packet> SetResponseToAck ( Ptr<Packet> packet);
+      Ptr<Packet> SetResponseToQueryAdjust (Ptr<Packet> packet);
+
+      void SetStateIfTimeout (void);
     private:
       ForwardUpCb m_forwardUp;
       Mac16Address m_address;
@@ -90,11 +101,10 @@ namespace ns3
       uint16_t m_header;
       uint16_t m_rn;
       bool m_next;
-      bool m_first;
       uint16_t m_slot_counter;
       double m_duration;
-      int m_preamble;
       bool m_rcv;
+      RfidConfiguration m_conf;
     };
   }
 }

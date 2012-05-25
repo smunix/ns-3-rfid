@@ -161,6 +161,9 @@ RfidTestCaseChannel::DoRun (void)
 
   CreateTwo(Vector(5.0, 0.0, 0.0), channel);
   CreateTwo(Vector(10.0, 0.0, 0.0), channel);
+  CreateTwo(Vector(11.0, 0.0, 0.0), channel);
+  CreateTwo(Vector(12.0, 0.0, 0.0), channel);
+  CreateTwo(Vector(13.0, 0.0, 0.0), channel);
   CreateOne(Vector(0.0, 0.0, 0.0), channel);
  // CreateTwo(Vector(15.0, 0.0, 0.0), channel);
   Simulator::Run();

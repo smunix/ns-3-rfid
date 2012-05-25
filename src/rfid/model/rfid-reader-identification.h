@@ -79,12 +79,13 @@ namespace ns3
       virtual void SetReceiving (bool rcv);
       virtual bool GetReceiving (void) const;      
 
-      void SendQueryRep (Ptr<Packet> packet);
+      void SendQueryRepOrAdjust (Ptr<Packet> packet);
+
     private:
       void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
       uint16_t RemoveEpcHeader (Ptr<Packet> packet);
-      void SetInitialConfiguration (void);
-      
+      void SetQForQuery (void);
+      void SetQForQueryAdjust (void);
     private:
       ForwardUpCb m_forwardUp;
       Mac16Address m_address;
@@ -95,6 +96,7 @@ namespace ns3
       uint16_t m_header;
       bool m_first;
       uint16_t m_q;
+      double m_qf;
       bool m_rcv;
       EventId m_id;
       double m_duration;
@@ -103,6 +105,9 @@ namespace ns3
       RfidConfiguration m_conf;
       double m_m;
       double m_dr;
+      int m_noResponseCounter;
+      int m_maxCollisionAllowed;
+      int m_maxNoResponseAllowed;
     };
   }
 }

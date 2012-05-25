@@ -1,3 +1,4 @@
+
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2012 SMUNIX
@@ -103,12 +104,7 @@ namespace ns3
     {
       m_eq=eq;
       m_header = 0x00;
-      m_first = true;
-      if (m_eq == TAG)
-      { 
-        SetState (ARBITRATE);
-      }
-    
+      SetState (IDLE_TAG);
     }
     int
     TagIdentification::GetEquipement (void) const
@@ -133,66 +129,210 @@ namespace ns3
     {
       m_rn = rand () % 0xFFFF; std::cout << " rn " << m_rn << std::endl;
     }
+     
+    uint16_t 
+    TagIdentification::CalculateSlotCounter (uint16_t q)
+    {
+      uint16_t slot;
+      slot = pow (2, q) - 1;std::cout << " slot " << slot << std::endl;
+      if (  slot != 0) { slot = rand () % (slot + 1) ;  } 
+      return slot;
+    }
 
-   void
+    void 
+    TagIdentification::SetStateIfTimeout (void)
+    {
+      if (!GetReceiving () ) {SetState (ARBITRATE);}
+    }
+
+    Ptr<Packet>
+    TagIdentification::GenerateRnMessage (Ptr<Packet> packet)
+    {
+      if ( m_slot_counter == 0 ) 
+      { 
+        SetState(REPLY); 
+        m_next = true; 
+        AddEpcHeader (packet,m_rn); 
+        m_duration += GetPacketDuration ( 16 , m_rn) + m_conf.GetTagPreamble (m_conf.GetM ());
+        Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &TagIdentification::SetStateIfTimeout, this);
+      }
+      std::cout << " slot counter " << m_slot_counter << std::endl;
+      return packet;
+    }
+
+    Ptr<Packet> 
+    TagIdentification::SetResponseToQuery ( Ptr<Packet> packet)
+    {
+      m_slot_counter = CalculateSlotCounter (RemoveEpcHeader (packet));
+      SetState(ARBITRATE);
+      m_conf.SetM (1.0);
+      m_conf.SetDR (8.0);
+      return GenerateRnMessage (packet);
+    } 
+
+    Ptr<Packet> 
+    TagIdentification::SetResponseToQueryRep ( Ptr<Packet> packet)
+    {
+      m_slot_counter --;
+      return GenerateRnMessage (packet);
+    } 
+
+    Ptr<Packet> 
+    TagIdentification::SetResponseToAck ( Ptr<Packet> packet)
+    {
+      if (RemoveEpcHeader (packet) == m_rn) 
+      { 
+        SetState(ACKNOWLEDGED); 
+        m_next = true;
+        m_duration += m_conf.GetTagPreamble (m_conf.GetM ());
+        Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &TagIdentification::SetStateIfTimeout, this);
+      }
+      else 
+        {
+          SetState (ARBITRATE);
+          m_slot_counter = 0X7FFF;
+        }
+      return packet;
+    } 
+
+    Ptr<Packet> 
+    TagIdentification::SetResponseToQueryAdjust (Ptr<Packet> packet)
+    {
+      m_slot_counter = CalculateSlotCounter (RemoveEpcHeader (packet));
+      SetState(ARBITRATE);
+      return GenerateRnMessage (packet);
+    }
+
+    void
     TagIdentification::SetEquipementState (Ptr<Packet> packet, uint16_t header) 
     {  
       m_duration = 0 ;
-      if (m_first == true ) { SetInitialConfiguration();}
+ 
       if (GetEquipement () == TAG )
-        { m_next = false;std::cout << "Tag_Statut " << m_eq << " " << m_sta << std::endl;
+        { 
+            m_next = false;
+            std::cout << "Tag_Statut " << m_eq << " " << m_sta << std::endl;
+            switch ( GetState () )
+            {
+              case (IDLE_TAG):
+                 if ( header == 0x0A ) 
+                 {
+                   std::cout << "************* Tag have received select message ****************" << std::endl;
+                   SetState(READY); 
+                   SetInitialConfiguration();
+                 }
+              break;
+
+
+              case (READY):
                  switch ( header )
                  {
-                  case (0x08):
-                  if (m_first == true ) 
-                        { 
-                          m_slot_counter = pow (2, RemoveEpcHeader (packet)) - 1;std::cout << " slot counter " << m_slot_counter << std::endl;
-                          if (  m_slot_counter != 0) { m_slot_counter = rand () % (m_slot_counter + 1) ;  }
-                          m_first = false;
-                        }
-                  if ( GetState () == ARBITRATE && m_slot_counter == 0 ) 
-                      { 
-                        SetState(REPLY); 
-                        m_next = true; 
-                        AddEpcHeader (packet,m_rn); 
-                        m_duration += GetPacketDuration ( 16 , m_rn);
-                        m_preamble = RFID_PREAMBLE;
-                      }
-                  std::cout << " slot counter " << m_slot_counter << std::endl;
-                  break;
+                   case ( 0x0A ): 
+                      SetState(READY);
+                   break;
 
-                  case (0x00):
-                  m_slot_counter -= 1;
-                  if ( GetState () == ARBITRATE && m_slot_counter == 0 ) 
-                      { 
-                        SetState(REPLY); 
-                        m_next = true; 
-                        AddEpcHeader (packet,m_rn); 
-                        m_duration += GetPacketDuration ( 16 , m_rn);
-                        m_preamble = RFID_FRAME_SYNC;
-                      }
-                  std::cout << " slot counter " << m_slot_counter << std::endl;
-                  break;
+                   case ( 0x08 ): 
+                      packet = SetResponseToQuery ( packet);
+                   break;
 
-                  case (0x01):
-                  if ( GetState () == REPLY)
-                    {
-                      if (RemoveEpcHeader (packet) == m_rn) 
-                       { 
-                         SetState(ACKNOWLEDGED); 
-                         m_next = true;
-                         m_preamble = RFID_PREAMBLE;
-                       }
-                      else std::cout << " ******** Not Matching Random Number ******** " << std::endl;
-                     }
-                     else std::cout << " ******** Not Matching Message ******** " << std::endl;
-                  break;
+                   default:
+                      SetState(READY);
+                   break;
+                 }                    
+              break;
 
-                  default:
-                  SetState(ARBITRATE);
-                  break; 
+
+              case (ARBITRATE):
+                 switch ( header )
+                 {
+                   case ( 0x0A ): 
+                      SetState(READY);
+                   break;
+
+                   case ( 0x08 ): 
+                      packet = SetResponseToQuery ( packet);
+                   break;
+                      
+                   case ( 0x00): 
+                      packet = SetResponseToQueryRep ( packet);
+                   break;
+
+                   case ( 0x09):    
+                      packet = SetResponseToQueryAdjust (packet);
+                   break;
+
+                   default:
+                      SetState(ARBITRATE);
+                   break;
                  }
-        m_duration += (m_preamble == RFID_PREAMBLE) ? 150 : 125;
+              break;
+
+
+              case (REPLY):
+                 switch ( header )
+                 {
+                   case ( 0x0A ): 
+                      SetState(READY);
+                   break;
+
+                   case ( 0x08 ): 
+                      packet = SetResponseToQuery ( packet);
+                   break;
+
+                   case ( 0x01): 
+                      packet = SetResponseToAck ( packet);
+                   break;
+
+                   case ( 0x09): 
+                      packet = GenerateRnMessage (packet);
+                   break;
+
+                   default:
+                      SetState(ARBITRATE);
+                   break;
+                 }
+              break;
+
+
+              case (ACKNOWLEDGED):
+                 switch ( header )
+                 {
+                   case ( 0x0A ): 
+                      SetState(READY);
+                   break;
+
+                   case ( 0x08 ): 
+                      packet = SetResponseToQuery ( packet);
+                   break;
+
+                   case ( 0x00): 
+                      SetState(READY);
+                   break;
+
+                   case ( 0xC1): 
+                      //not implemented yet
+                   break;
+
+                   case ( 0x01): 
+                      packet = SetResponseToAck ( packet);
+                   break;
+
+                   case ( 0x09): 
+                      SetState(READY);
+                   break;
+
+                   default:
+                      SetState(ARBITRATE);
+                   break;
+                 }
+              break;
+
+
+              default:
+                 std::cout << " ******** Not Matching Message ******** " << std::endl;
+              break;
+            }
+
         if (m_next == true) 
           {
             Send(packet);

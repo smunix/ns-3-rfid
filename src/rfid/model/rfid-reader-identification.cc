@@ -28,6 +28,7 @@
 #include "ns3/double.h"
 
 #include <iostream>
+#include <ctime>
 #include <stdlib.h>
 
 
@@ -47,7 +48,7 @@ namespace ns3
       static TypeId tid = TypeId("ns3::rfid::ReaderIdentification")
         .SetParent<Object>()
         .AddConstructor<ReaderIdentification> ()
-        .AddAttribute ("Divide Ratio",
+        .AddAttribute ("DivideRatio",
                    "equal to 8 or 64/3",
                    DoubleValue (8.0),
                    MakeDoubleAccessor (&ReaderIdentification::m_dr),
@@ -56,7 +57,17 @@ namespace ns3
                    "equal to 1, 2, 4 or 8",
                    DoubleValue (1.0),
                    MakeDoubleAccessor (&ReaderIdentification::m_m),
-                   MakeDoubleChecker<double> ())             
+                   MakeDoubleChecker<double> ())   
+        .AddAttribute ("MaxCollision",
+                   "Max collision allowed before sending QueryAdjust",
+                   DoubleValue (1),
+                   MakeDoubleAccessor (&ReaderIdentification::m_maxCollisionAllowed),
+                   MakeDoubleChecker<int> ())         
+        .AddAttribute ("MaxNoResponse",
+                   "Max no response allowed before sending QueryAdjust",
+                   DoubleValue (100),
+                   MakeDoubleAccessor (&ReaderIdentification::m_maxNoResponseAllowed),
+                   MakeDoubleChecker<int> ())      
 ;
       return tid;
     }
@@ -121,10 +132,8 @@ namespace ns3
       m_tag_number = 0;
       m_conf.SetM(m_m);
       m_conf.SetDR(m_dr);
-      if (m_eq == READER)
-      { 
-        SetState (IDLE_READER);
-      }
+      SetState (IDLE_READER);
+      m_noResponseCounter = 0;
     }
     int
     ReaderIdentification::GetEquipement (void) const
@@ -144,21 +153,46 @@ namespace ns3
     }
 
     void
-    ReaderIdentification::SetInitialConfiguration (void)
+    ReaderIdentification::SetQForQuery (void)
     {
-      m_q = rand() % 0x10; std::cout << " ***m_q*** " << m_q << std::endl ; 
+      srand(time(0));
+      m_qf = ((double)rand()/(double)RAND_MAX)* 0x0F;
+      m_q = (int)m_qf;
+      std::cout << " ***m_q*** " << m_qf << " " << m_q << std::endl ;
     }
 
     void
-    ReaderIdentification::SendQueryRep (Ptr<Packet> packet)
+    ReaderIdentification::SetQForQueryAdjust (void)
+    {
+      m_qf -= 0.5 ;
+      m_q = (int)m_qf;
+      std::cout << " ***m_q*** " << m_qf << " " << m_q << std::endl ;
+    }
+
+    void
+    ReaderIdentification::SendQueryRepOrAdjust (Ptr<Packet> packet)
     { 
       if (!GetReceiving ()) 
-      {  
-        std::cout << " ******** Retransmission ******** " << std::endl;
+      { 
+        std::cout << " no response +++++++++++++++++ " << m_noResponseCounter << " " <<  m_maxNoResponseAllowed << std::endl;
         m_duration = 0;
-        SetState(QUERY_REP);
-        m_header = 0x00;
-        m_duration = GetPacketDuration ( 2 , m_header) + m_conf.GetFrameSyncDuration ();
+        if (m_maxNoResponseAllowed !=  m_noResponseCounter)
+        {
+                std::cout << " ******** QueryRep ******** " << std::endl;
+                m_noResponseCounter++;
+                SetState(QUERY_REP);
+                m_header = 0x00;
+                m_duration = GetPacketDuration ( 2 , m_header) + m_conf.GetFrameSyncDuration ();
+        }
+        else 
+        {
+                std::cout << " ******** QueryAdjust ******** " << std::endl;
+                m_noResponseCounter = 0;
+                SetState(QUERY_REP);
+                AddEpcHeader (packet,m_q);
+                m_header = 0x09;
+                m_duration = GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 4 , m_q) + m_conf.GetFrameSyncDuration ();
+        }
         AddEpcHeader (packet,m_header);
         Send (packet);
       }
@@ -173,39 +207,52 @@ namespace ns3
         {
                  switch (GetState ())
                  {
+
                   case (IDLE_READER):
+                  SetState(SELECT);
+                  m_header=0x0A;
+                  m_duration += GetPacketDuration ( 4 , m_header);
+                  break;
+
+                  case (SELECT):
                   SetState(QUERY);
                   m_header=0x08;
                   m_duration += GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 4 , m_q);
+                  SetQForQuery();
                   AddEpcHeader (packet,m_q); 
                   m_preamble = RFID_PREAMBLE;
                   break;
+
                   case (QUERY):
                   SetState(ACK);
                   m_header=0x01;
                   m_duration += GetPacketDuration ( 2 , m_header) + GetPacketDuration ( 16 , RemoveEpcHeader( packet-> Copy ()));
                   m_preamble = RFID_FRAME_SYNC;
                   break;
+
                   case (QUERY_REP):
                   SetState(ACK);
                   m_header=0x01;
                   m_duration += GetPacketDuration ( 2 , m_header) + GetPacketDuration ( 16 , RemoveEpcHeader( packet-> Copy ()));
                   m_preamble = RFID_FRAME_SYNC;
                   break;
+
                   default:
                   SetState(QUERY_REP);
+                  m_noResponseCounter = 0;
                   m_tag_number += 1; 
                   std::cout << "************************ " << m_tag_number << " tags are identified ************************" << std::endl;
                   Ptr<Packet> p = Create <Packet> ();
                   std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
                   SetReceiving (false);
-                  if (m_tag_number != GetTagNumber ()) {SendQueryRep (p);}
+                  if (m_tag_number != GetTagNumber ()) {SendQueryRepOrAdjust (p);}
                   break; 
+
                  }
         if (GetState () != QUERY_REP )
            {  
                 AddEpcHeader (packet,m_header); 
-                m_duration += (m_preamble == RFID_PREAMBLE) ? m_conf.GetPreambleDuration () : m_conf.GetFrameSyncDuration (); 
+                if (GetState () != SELECT ) { m_duration += (m_preamble == RFID_PREAMBLE) ? m_conf.GetPreambleDuration () : m_conf.GetFrameSyncDuration (); }
                 if (m_first != true) {Send(packet);}
            }
         }
@@ -217,21 +264,21 @@ namespace ns3
       NS_LOG_FUNCTION ("packet=" << &packet);
       if (m_first == true ) 
       { 
-        SetInitialConfiguration();
         SetEquipementState(packet, m_header);
         std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
         m_first = false ;
         SetReceiving (false); 
         GetRfidPhy ()->Send (packet ,m_duration );
+        Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT4()), &ReaderIdentification::SetEquipementState , this , packet, m_header);
        }
           else if ( !(m_tag_number == GetTagNumber () && m_eq == READER) ) 
                 {
                   std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
                   SetReceiving (false);
                   GetRfidPhy ()->Send (packet ,m_duration );
-                  
+                  m_id = Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &ReaderIdentification::SendQueryRepOrAdjust , this , packet);
                 }
-      m_id = Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &ReaderIdentification::SendQueryRep , this , packet);
+      
       return true;
     }
  

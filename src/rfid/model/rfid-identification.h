@@ -39,7 +39,8 @@ namespace ns3
     
     enum TagStates 
     {
-    READY=0,
+    IDLE_TAG=0,
+    READY,
     ARBITRATE,
     REPLY,
     ACKNOWLEDGED
@@ -48,9 +49,11 @@ namespace ns3
     enum ReaderStates 
     {
     IDLE_READER=0,
+    SELECT,
     QUERY,
-    ACK,
-    QUERY_REP
+    QUERY_REP,
+    QUERY_ADJUST,
+    ACK
     };
 
     class Identification : public Object
