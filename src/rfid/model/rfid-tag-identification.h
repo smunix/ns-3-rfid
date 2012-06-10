@@ -76,6 +76,9 @@ namespace ns3
      
       virtual void SetReceiving (bool rcv);
       virtual bool GetReceiving (void) const;
+
+      virtual void SetCollision (bool collision);
+      virtual bool GetCollision (void) const; 
    
     private:
       void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
@@ -91,6 +94,9 @@ namespace ns3
       Ptr<Packet> SetResponseToQueryAdjust (Ptr<Packet> packet);
 
       void SetStateIfTimeout (void);
+      
+      bool IsMatching (Ptr<Packet> packet);
+      void ResponseToAction (Ptr<Packet> packet);
     private:
       ForwardUpCb m_forwardUp;
       Mac16Address m_address;
@@ -105,6 +111,18 @@ namespace ns3
       double m_duration;
       bool m_rcv;
       RfidConfiguration m_conf;
+      bool m_collision;
+
+    private:
+      bool m_tagSl;
+      uint16_t m_tagSessionValue;
+      uint16_t m_tagSession;
+
+    private:
+      uint16_t m_trext;
+      uint16_t m_sel;
+      uint16_t m_session;
+      uint16_t m_valueTarget;
     };
   }
 }

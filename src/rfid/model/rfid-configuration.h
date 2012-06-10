@@ -83,6 +83,12 @@ namespace ns3
       double GetTagPreamble (int trext) const;
       double GetTagEndSignaling (void) const;
 
+      uint16_t  ModulationToHeader ( int m);
+      int HeaderToModulation (uint16_t  header);
+
+      uint16_t  RatioToHeader ( double dr);
+      double HeaderToRatio ( uint16_t  header);
+
     private:
       double m_data0;
       double m_x; 

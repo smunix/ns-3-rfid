@@ -18,6 +18,7 @@ def build(bld):
         'model/rfid-identification.cc',
         'model/rfid-net-device.cc',
         'model/epc-header.cc',
+        'model/epc-memory.cc',
         'model/rfid-configuration.cc',
         'helper/rfid-helper.cc',
         ]
@@ -39,6 +40,7 @@ def build(bld):
         'model/rfid-identification.h',
         'model/rfid-net-device.h',
         'model/epc-header.h',
+        'model/epc-memory.h',
         'model/rfid-configuration.h',
         'model/rfid-preamble.h',
         'helper/rfid-helper.h',

@@ -54,6 +54,7 @@ namespace ns3
 
     void SetForwardUpCallback (ForwardUpCb cb);
     void SetReceivingCallback (ReceivingCb cb);
+    void SetCollisionCallback (ReceivingCb cb);
 
     void SetDuration ( double duration);
     double GetDuration (void) const;
@@ -63,6 +64,7 @@ namespace ns3
     Ptr<Object> m_mobility;
     ForwardUpCb m_forwardUp;
     ReceivingCb m_receiving;
+    ReceivingCb m_collision;
     Ptr<class RfidPhyState> m_state;
     double m_duration;
   };

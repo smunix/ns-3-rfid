@@ -56,6 +56,29 @@ namespace ns3
     ACK
     };
 
+    enum SessionStates
+    {
+    S0=0,
+    S1,
+    S2,
+    S3,
+    SL
+    };
+
+    enum SessionValues
+    {
+    A=0,
+    B
+    };
+
+    enum MemoryBank
+    {
+    RESERVED=0,
+    EPC,
+    TAGID,
+    USER
+    };
+
     class Identification : public Object
     {
     public:
@@ -99,6 +122,9 @@ namespace ns3
       virtual void SetReceiving (bool rcv) = 0;
       virtual bool GetReceiving (void) const = 0;
 
+      virtual void SetCollision (bool collision) = 0;
+      virtual bool GetCollision (void) const = 0; 
+
       double GetPacketDuration ( int size, uint32_t packet);
 
       void SetTagNumber (int tag);
@@ -106,6 +132,9 @@ namespace ns3
 
    private:
      int m_tagNumber;
+     int m_session;
+     int m_sessionValue;
+     bool m_sl;
     };
   }
 }

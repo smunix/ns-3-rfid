@@ -79,7 +79,10 @@ namespace ns3
       virtual void SetReceiving (bool rcv);
       virtual bool GetReceiving (void) const;      
 
-      void SendQueryRepOrAdjust (Ptr<Packet> packet);
+      virtual void SetCollision (bool collision);
+      virtual bool GetCollision (void) const; 
+
+      void SendQueryRepOrAdjust (void);
 
     private:
       void AddEpcHeader (Ptr<Packet> packet,uint16_t header);
@@ -95,7 +98,6 @@ namespace ns3
       int m_sta;
       uint16_t m_header;
       bool m_first;
-      uint16_t m_q;
       double m_qf;
       bool m_rcv;
       EventId m_id;
@@ -103,11 +105,32 @@ namespace ns3
       int m_preamble ;
       int m_tag_number;
       RfidConfiguration m_conf;
-      double m_m;
-      double m_dr;
+
+
       int m_noResponseCounter;
       int m_maxCollisionAllowed;
       int m_maxNoResponseAllowed;
+      bool m_collision;
+
+    private:
+      uint16_t m_target;
+      uint16_t m_action;
+      uint16_t m_memBank;
+      uint32_t m_pointer;
+      uint16_t m_length;
+      uint16_t m_mask;
+      uint16_t m_truncate;
+      uint16_t m_crc16;
+
+    private:
+      double m_dr;
+      uint16_t m_m;
+      uint16_t m_trext;
+      uint16_t m_sel;
+      uint16_t m_session;
+      uint16_t m_valueTarget;
+      uint16_t m_q;
+      uint16_t m_crc5;
     };
   }
 }

@@ -105,6 +105,7 @@ RfidTestCaseChannel::CreateOne (Vector pos, Ptr<RfidChannel> channel)
   readerId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardRfidUp, dev));
   phy->SetForwardUpCallback(MakeCallback (&rfid::ReaderIdentification::Receive, readerId));
   phy->SetReceivingCallback(MakeCallback (&rfid::ReaderIdentification::SetReceiving, readerId));
+  phy->SetCollisionCallback(MakeCallback (&rfid::ReaderIdentification::SetCollision, readerId));
 
   Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
       dev);
@@ -141,6 +142,7 @@ RfidTestCaseChannel::CreateTwo (Vector pos, Ptr<RfidChannel> channel)
   tagId->SetForwardUpCallback(MakeCallback (&RfidNetDevice::ForwardRfidUp, dev));
   phy->SetForwardUpCallback(MakeCallback (&rfid::TagIdentification::Receive, tagId));
   phy->SetReceivingCallback(MakeCallback (&rfid::TagIdentification::SetReceiving, tagId));
+  phy->SetCollisionCallback(MakeCallback (&rfid::TagIdentification::SetCollision, tagId));
  /*Simulator::Schedule(Seconds(1.0), &RfidTestCaseChannel::SendOnePacket, this,
       dev);*/
   m_devices.push_back (dev);

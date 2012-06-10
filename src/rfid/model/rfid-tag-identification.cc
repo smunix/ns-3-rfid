@@ -27,6 +27,8 @@
 #include "ns3/packet.h"
 #include "ns3/simulator.h"
 #include "rfid-preamble.h"
+#include "ns3/uinteger.h"
+#include "ns3/boolean.h"
 
 
 #include <iostream>
@@ -45,7 +47,25 @@ namespace ns3
     TypeId
     TagIdentification::GetTypeId (void)
     {
-      static TypeId tid = TypeId("ns3::rfid::TagIdentification").SetParent<Object>().AddConstructor<TagIdentification> ();
+      static TypeId tid = TypeId("ns3::rfid::TagIdentification")
+        .SetParent<Object>()
+        .AddConstructor<TagIdentification> ()
+        .AddAttribute ("Session",
+                   "Initial tag session",
+                   UintegerValue (S0),
+                   MakeUintegerAccessor (&TagIdentification::m_tagSession),
+                   MakeUintegerChecker<uint16_t> ()) 
+        .AddAttribute ("SessionValue",
+                   "Initial value of the tag session",
+                   UintegerValue (rfid::A),
+                   MakeUintegerAccessor (&TagIdentification::m_tagSessionValue),
+                   MakeUintegerChecker<uint16_t> ())    
+        .AddAttribute ("SelectedFlag",
+                   "Selected flag statue",
+                   BooleanValue (true),
+                   MakeBooleanAccessor (&TagIdentification::m_tagSl),
+                   MakeBooleanChecker ())   
+;
       return tid;
     }
     TagIdentification::TagIdentification (void)
@@ -104,7 +124,7 @@ namespace ns3
     {
       m_eq=eq;
       m_header = 0x00;
-      SetState (IDLE_TAG);
+      SetState (IDLE_TAG); 
     }
     int
     TagIdentification::GetEquipement (void) const
@@ -153,7 +173,7 @@ namespace ns3
         SetState(REPLY); 
         m_next = true; 
         AddEpcHeader (packet,m_rn); 
-        m_duration += GetPacketDuration ( 16 , m_rn) + m_conf.GetTagPreamble (m_conf.GetM ());
+        m_duration += GetPacketDuration ( 16 , m_rn) + m_conf.GetTagPreamble (m_trext);
         Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &TagIdentification::SetStateIfTimeout, this);
       }
       std::cout << " slot counter " << m_slot_counter << std::endl;
@@ -163,18 +183,34 @@ namespace ns3
     Ptr<Packet> 
     TagIdentification::SetResponseToQuery ( Ptr<Packet> packet)
     {
-      m_slot_counter = CalculateSlotCounter (RemoveEpcHeader (packet));
-      SetState(ARBITRATE);
-      m_conf.SetM (1.0);
-      m_conf.SetDR (8.0);
-      return GenerateRnMessage (packet);
+      m_conf.SetDR (m_conf.HeaderToRatio (RemoveEpcHeader (packet)));
+      m_conf.SetM (m_conf.HeaderToModulation (RemoveEpcHeader (packet)));
+      m_trext = RemoveEpcHeader (packet);
+      m_sel = RemoveEpcHeader (packet);
+      m_session = RemoveEpcHeader (packet);
+      m_valueTarget = RemoveEpcHeader (packet);       
+      int slot = RemoveEpcHeader (packet);                 
+      if ( (m_session == m_tagSession) && (m_valueTarget == m_tagSessionValue) )
+      { 
+         if ( m_sel == 0x0 || m_sel == 0x1 || ( m_sel == 0x2 && m_tagSl == false ) || ( m_sel == 0x3 &&  m_tagSl == true ) )
+         {
+           m_slot_counter = CalculateSlotCounter (slot);
+           SetState(ARBITRATE);
+           packet = GenerateRnMessage (packet);
+         }
+      }
+      return packet;
     } 
 
     Ptr<Packet> 
     TagIdentification::SetResponseToQueryRep ( Ptr<Packet> packet)
     {
-      m_slot_counter --;
-      return GenerateRnMessage (packet);
+      if ( m_tagSession == RemoveEpcHeader (packet))
+      {
+        m_slot_counter --;
+        packet = GenerateRnMessage (packet);
+      }
+      return packet;
     } 
 
     Ptr<Packet> 
@@ -184,13 +220,13 @@ namespace ns3
       { 
         SetState(ACKNOWLEDGED); 
         m_next = true;
-        m_duration += m_conf.GetTagPreamble (m_conf.GetM ());
+        m_duration += m_conf.GetTagPreamble (m_trext);
         Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &TagIdentification::SetStateIfTimeout, this);
       }
       else 
         {
           SetState (ARBITRATE);
-          m_slot_counter = 0X7FFF;
+         // m_slot_counter = 0X7FFF;
         }
       return packet;
     } 
@@ -198,9 +234,14 @@ namespace ns3
     Ptr<Packet> 
     TagIdentification::SetResponseToQueryAdjust (Ptr<Packet> packet)
     {
-      m_slot_counter = CalculateSlotCounter (RemoveEpcHeader (packet));
-      SetState(ARBITRATE);
-      return GenerateRnMessage (packet);
+      int slot = RemoveEpcHeader (packet);
+      if ( m_tagSession == RemoveEpcHeader (packet))
+      {
+        m_slot_counter = CalculateSlotCounter (slot);
+        SetState(ARBITRATE);
+        packet = GenerateRnMessage (packet);
+      }
+      return packet;
     }
 
     void
@@ -217,7 +258,8 @@ namespace ns3
               case (IDLE_TAG):
                  if ( header == 0x0A ) 
                  {
-                   std::cout << "************* Tag have received select message ****************" << std::endl;
+                   std::cout << "************* Tag have received select message ****************" << std::endl; 
+                   ResponseToAction (packet);
                    SetState(READY); 
                    SetInitialConfiguration();
                  }
@@ -275,6 +317,11 @@ namespace ns3
                       SetState(READY);
                    break;
 
+                   case ( 0x00): 
+                      SetState(ARBITRATE);
+                      m_slot_counter = 0X7FFF;
+                   break;
+
                    case ( 0x08 ): 
                       packet = SetResponseToQuery ( packet);
                    break;
@@ -303,10 +350,12 @@ namespace ns3
 
                    case ( 0x08 ): 
                       packet = SetResponseToQuery ( packet);
+                      m_tagSessionValue = (m_tagSessionValue == A) ? B : A;
                    break;
 
                    case ( 0x00): 
                       SetState(READY);
+                      m_tagSessionValue = (m_tagSessionValue == A) ? B : A;
                    break;
 
                    case ( 0xC1): 
@@ -319,6 +368,12 @@ namespace ns3
 
                    case ( 0x09): 
                       SetState(READY);
+                      m_tagSessionValue = (m_tagSessionValue == A) ? B : A;
+                   break;
+
+                   case ( 0xC0): 
+                      SetState(ARBITRATE);
+                      //tells a replying tag that its EPC was not successfully received
                    break;
 
                    default:
@@ -375,9 +430,95 @@ namespace ns3
       NS_LOG_FUNCTION ("packet=" << packet << ", header=" << m_header);
       m_forwardUp (packet, m_header);
       SetEquipementState ( packet, m_header);
+    //  Simulator::Schedule (MicroSeconds (m_conf.GetT1() - 20), &TagIdentification::SetEquipementState, this, packet, m_header);
     }
-    
-        void 
+
+    bool 
+    TagIdentification::IsMatching (Ptr<Packet> packet)
+    {
+      RemoveEpcHeader (packet);//membank
+      RemoveEpcHeader (packet);//pointer
+      RemoveEpcHeader (packet);//length
+      RemoveEpcHeader (packet);//mask
+      RemoveEpcHeader (packet);//truncate == 0 => envoi complet de epc
+      // if ( length == 0 && pointer == true ) { return true ;}
+       return true;
+    }
+
+    void 
+    TagIdentification::ResponseToAction (Ptr<Packet> packet)
+    {
+      uint16_t target = RemoveEpcHeader (packet);
+      uint16_t action = RemoveEpcHeader (packet);
+      if ( IsMatching (packet) ) 
+      { 
+         if (target == SL)
+         { 
+            if (action == 0x0 || action == 0x1)
+            {
+               m_tagSl = true;
+            }
+            else if (action == 0x4 || action == 0x5)
+                 {
+                    m_tagSl = false;
+                 }
+                 else if (action == 0x3)
+                      {
+                         m_tagSl = !m_tagSl;
+                      }
+         }
+         else if ((target == S0) || (target == S1) || (target == S2) || (target == S3))
+         { 
+            if (action == 0x0 || action == 0x1)
+            {
+               m_tagSessionValue = A;
+            }
+            else if (action == 0x4 || action == 0x5)
+                 {
+                    m_tagSessionValue = B;
+                 }
+                 else if (action == 0x3)
+                      {
+                         m_tagSessionValue = (m_tagSessionValue == A) ? B : A;
+                      }
+         }     
+      }  
+      else  
+              {
+                 if (target == SL)
+                 { 
+                    if (action == 0x0 || action == 0x2)
+                    {
+                       m_tagSl = false;
+                    }
+                    else if (action == 0x4 || action == 0x6)
+                         {
+                            m_tagSl = true;
+                         }
+                         else if (action == 0x7)
+                              {
+                                 m_tagSl = !m_tagSl;
+                              }
+                 }
+                 else if (target == (S0 || S1 || S2 || S3))
+                 { 
+                    if (action == 0x0 || action == 0x2)
+                    {
+                       m_tagSessionValue = B;
+                    }
+                    else if (action == 0x4 || action == 0x6)
+                         {
+                            m_tagSessionValue = A;
+                         }
+                         else if (action == 0x7)
+                              {
+                                 m_tagSessionValue = (m_tagSessionValue == A) ? B : A;
+                              }
+                 }               
+              }
+    }
+
+    void 
     TagIdentification::SetReceiving (bool rcv)
     {
       m_rcv = rcv;
@@ -386,6 +527,17 @@ namespace ns3
     TagIdentification::GetReceiving (void) const
     {
       return m_rcv;
+    }
+
+    void 
+    TagIdentification::SetCollision (bool collision)
+    {
+      m_collision = collision;
+    }
+    bool 
+    TagIdentification::GetCollision (void) const
+    {
+      return m_collision;
     }
 
   }

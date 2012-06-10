@@ -23,6 +23,7 @@
 #include "rfid-identification.h"
 #include <algorithm>
 
+
 NS_LOG_COMPONENT_DEFINE("RfidConfiguration");
 
 namespace ns3
@@ -225,6 +226,50 @@ namespace ns3
         return GetData0 () + GetData1 ();
       }
 
+      uint16_t 
+      RfidConfiguration::ModulationToHeader ( int m)
+      {
+        switch (m)
+        {
+           case (1):
+              return 0x0;
+           case (2):
+              return 0x1;
+           case (4):
+              return 0x2;
+           default:
+              return 0x3;
+        }
+      }
+      int 
+      RfidConfiguration::HeaderToModulation (uint16_t  header)
+      {
+        switch (header)
+        {
+           case (0x0):
+              return 1;
+           case (0x1):
+              return 2;
+           case (0x2):
+              return 4;
+           default:
+              return 8;
+        }
+      }
+      uint16_t  
+      RfidConfiguration::RatioToHeader ( double dr)
+      {
+        if (dr == 8.0) 
+          return 0x0;
+        else return 0x1;
+      }
+      double  
+      RfidConfiguration::HeaderToRatio ( uint16_t header)
+      {
+        if ( header == 0x0)
+          return 8.0;
+        else return 64/3; 
+      }
 
 }
 

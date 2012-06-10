@@ -110,7 +110,8 @@ namespace ns3
   {
     NS_LOG_FUNCTION (pkt);
     if (m_state -> IsStateIdle ()) { m_state ->SwitchToRx ( MicroSeconds (duration));Simulator::Schedule ( MicroSeconds (duration), &RfidPhy::EndRecv, this, pkt);m_receiving(true);}
-      else  std::cout << " *************** collision *************** " << std::endl;
+      else  
+         { std::cout << " *************** collision *************** " << std::endl; m_collision(true);}
   }
   void
   RfidPhy::EndRecv (Ptr<Packet> pkt)
@@ -127,6 +128,11 @@ namespace ns3
   RfidPhy::SetReceivingCallback (ReceivingCb cb)
   {
     m_receiving = cb;
+  }
+  void
+  RfidPhy::SetCollisionCallback (ReceivingCb cb)
+  {
+    m_collision = cb;
   }
   void 
   RfidPhy::SetDuration ( double duration)

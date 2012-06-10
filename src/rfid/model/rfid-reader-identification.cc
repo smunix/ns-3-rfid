@@ -26,10 +26,12 @@
 #include "ns3/simulator.h"
 #include "rfid-preamble.h"
 #include "ns3/double.h"
+#include "ns3/uinteger.h"
 
 #include <iostream>
 #include <ctime>
 #include <stdlib.h>
+#include <algorithm>
 
 
 
@@ -47,27 +49,82 @@ namespace ns3
     {
       static TypeId tid = TypeId("ns3::rfid::ReaderIdentification")
         .SetParent<Object>()
-        .AddConstructor<ReaderIdentification> ()
+        .AddConstructor<ReaderIdentification> ()  
+        .AddAttribute ("MaxCollision",
+                   "Max collision allowed before sending QueryAdjust",
+                   UintegerValue (1),
+                   MakeUintegerAccessor (&ReaderIdentification::m_maxCollisionAllowed),
+                   MakeUintegerChecker<uint32_t> ())          
+        .AddAttribute ("MaxNoResponse",
+                   "Max no response allowed before sending QueryAdjust",
+                   UintegerValue (100),
+                   MakeUintegerAccessor (&ReaderIdentification::m_maxNoResponseAllowed),
+                   MakeUintegerChecker<uint32_t> ())       
+        .AddAttribute ("Target",
+                   "Target in select message",
+                   UintegerValue (rfid::S0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_target),
+                   MakeUintegerChecker<uint16_t> ())  
+        .AddAttribute ("Action",
+                   "Action to receive select message",
+                   UintegerValue (0x01),
+                   MakeUintegerAccessor (&ReaderIdentification::m_action),
+                   MakeUintegerChecker<uint16_t> ())     
+        .AddAttribute ("MemBanck",
+                   "Selected memory bank",
+                   UintegerValue (rfid::TAGID),
+                   MakeUintegerAccessor (&ReaderIdentification::m_memBank),
+                   MakeUintegerChecker<uint16_t> ())  
+        .AddAttribute ("Pointer",
+                   "Address to the mask marked by the pointer",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_pointer),
+                   MakeUintegerChecker<uint32_t> ())  
+        .AddAttribute ("Length",
+                   "Length of mask",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_length),
+                   MakeUintegerChecker<uint16_t> ())  
+        .AddAttribute ("Mask",
+                   "Mask to match in the tag memory",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_mask),
+                   MakeUintegerChecker<uint16_t> ())    
+        .AddAttribute ("Truncate",
+                   "Able or disable epc truncation",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_truncate),
+                   MakeUintegerChecker<uint16_t> ())   
         .AddAttribute ("DivideRatio",
                    "equal to 8 or 64/3",
                    DoubleValue (8.0),
                    MakeDoubleAccessor (&ReaderIdentification::m_dr),
-                   MakeDoubleChecker<double> ())
+                   MakeDoubleChecker<double> ()) 
         .AddAttribute ("Modulation",
                    "equal to 1, 2, 4 or 8",
-                   DoubleValue (1.0),
-                   MakeDoubleAccessor (&ReaderIdentification::m_m),
-                   MakeDoubleChecker<double> ())   
-        .AddAttribute ("MaxCollision",
-                   "Max collision allowed before sending QueryAdjust",
-                   DoubleValue (1),
-                   MakeDoubleAccessor (&ReaderIdentification::m_maxCollisionAllowed),
-                   MakeDoubleChecker<int> ())         
-        .AddAttribute ("MaxNoResponse",
-                   "Max no response allowed before sending QueryAdjust",
-                   DoubleValue (100),
-                   MakeDoubleAccessor (&ReaderIdentification::m_maxNoResponseAllowed),
-                   MakeDoubleChecker<int> ())      
+                   UintegerValue (1),
+                   MakeUintegerAccessor (&ReaderIdentification::m_m),
+                   MakeUintegerChecker<uint16_t> ())  
+        .AddAttribute ("TRext",
+                   "Preamble type",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_trext),
+                   MakeUintegerChecker<uint16_t> ())  
+        .AddAttribute ("Sel",
+                   "Selected flag type",
+                   UintegerValue (0x0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_sel),
+                   MakeUintegerChecker<uint16_t> ()) 
+        .AddAttribute ("Session",
+                   "Session type",
+                   UintegerValue (S0),
+                   MakeUintegerAccessor (&ReaderIdentification::m_session),
+                   MakeUintegerChecker<uint16_t> ()) 
+        .AddAttribute ("ValueTarget",
+                   "Value of session",
+                   UintegerValue (A),
+                   MakeUintegerAccessor (&ReaderIdentification::m_valueTarget),
+                   MakeUintegerChecker<uint16_t> ()) 
 ;
       return tid;
     }
@@ -129,6 +186,7 @@ namespace ns3
       m_header = 0x00;
       m_first = true;
       SetReceiving (true);
+      SetCollision (false);
       m_tag_number = 0;
       m_conf.SetM(m_m);
       m_conf.SetDR(m_dr);
@@ -164,34 +222,48 @@ namespace ns3
     void
     ReaderIdentification::SetQForQueryAdjust (void)
     {
-      m_qf -= 0.5 ;
-      m_q = (int)m_qf;
-      std::cout << " ***m_q*** " << m_qf << " " << m_q << std::endl ;
+      if (!GetCollision ()) 
+      {
+        m_qf = std::max ( 0.0, m_qf-0.5);
+        m_q = (int)m_qf;
+        std::cout << " ***m_q*** " << m_qf << " " << m_q << std::endl ;
+      }
+      else 
+         {
+           m_qf = std::min ( 15.0, m_qf+0.5);   
+           m_q = (int)m_qf;
+           std::cout << " ***m_q*** " << m_qf << " " << m_q << std::endl ;
+         }
     }
 
     void
-    ReaderIdentification::SendQueryRepOrAdjust (Ptr<Packet> packet)
+    ReaderIdentification::SendQueryRepOrAdjust (void)
     { 
+        Ptr<Packet> packet = Create<Packet> (0);
       if (!GetReceiving ()) 
       { 
         std::cout << " no response +++++++++++++++++ " << m_noResponseCounter << " " <<  m_maxNoResponseAllowed << std::endl;
         m_duration = 0;
-        if (m_maxNoResponseAllowed !=  m_noResponseCounter)
-        {
-                std::cout << " ******** QueryRep ******** " << std::endl;
-                m_noResponseCounter++;
-                SetState(QUERY_REP);
-                m_header = 0x00;
-                m_duration = GetPacketDuration ( 2 , m_header) + m_conf.GetFrameSyncDuration ();
-        }
-        else 
+        if (m_maxNoResponseAllowed ==  m_noResponseCounter || GetCollision ())
         {
                 std::cout << " ******** QueryAdjust ******** " << std::endl;
                 m_noResponseCounter = 0;
                 SetState(QUERY_REP);
+                SetQForQueryAdjust ();
                 AddEpcHeader (packet,m_q);
+                AddEpcHeader (packet,m_session);
                 m_header = 0x09;
-                m_duration = GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 4 , m_q) + m_conf.GetFrameSyncDuration ();
+                m_duration = GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 4 , m_q) + GetPacketDuration ( 2 , m_session) + m_conf.GetFrameSyncDuration ();
+                SetCollision (false);
+        }
+        else 
+        {
+                std::cout << " ******** QueryRep ******** " << std::endl;
+                m_noResponseCounter++;
+                SetState(QUERY_REP);
+                AddEpcHeader (packet,m_session);
+                m_header = 0x00;
+                m_duration = GetPacketDuration ( 2 , m_header) + GetPacketDuration ( 2 , m_session) + m_conf.GetFrameSyncDuration ();
         }
         AddEpcHeader (packet,m_header);
         Send (packet);
@@ -210,16 +282,32 @@ namespace ns3
 
                   case (IDLE_READER):
                   SetState(SELECT);
+                  AddEpcHeader (packet,m_truncate); 
+                  AddEpcHeader (packet,m_mask);
+                  AddEpcHeader (packet,m_length);
+                  AddEpcHeader (packet,m_pointer);
+                  AddEpcHeader (packet,m_memBank);
+                  AddEpcHeader (packet,m_action);
+                  AddEpcHeader (packet,m_target);
                   m_header=0x0A;
-                  m_duration += GetPacketDuration ( 4 , m_header);
+                  m_duration += GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 3 , m_target) + GetPacketDuration ( 3 , m_action) + GetPacketDuration ( 2 , m_memBank); 
+                  m_duration += GetPacketDuration ( 8 , m_pointer) + GetPacketDuration ( 8 , m_length) + GetPacketDuration ( 8 , m_mask) + GetPacketDuration ( 1 , m_truncate);
+                  m_preamble = RFID_FRAME_SYNC;
                   break;
 
                   case (SELECT):
                   SetState(QUERY);
-                  m_header=0x08;
-                  m_duration += GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 4 , m_q);
                   SetQForQuery();
-                  AddEpcHeader (packet,m_q); 
+                  AddEpcHeader (packet,m_q);
+                  AddEpcHeader (packet,m_valueTarget);
+                  AddEpcHeader (packet,m_session);
+                  AddEpcHeader (packet,m_sel);
+                  AddEpcHeader (packet,m_trext);
+                  AddEpcHeader (packet,m_conf.ModulationToHeader (m_m));
+                  AddEpcHeader (packet,m_conf.RatioToHeader (m_dr));
+                  m_header=0x08;
+                  m_duration += GetPacketDuration ( 4 , m_header) + GetPacketDuration ( 1 , m_conf.RatioToHeader (m_dr)) + GetPacketDuration ( 2 , m_conf.ModulationToHeader (m_m));
+                  m_duration += GetPacketDuration ( 1 , m_trext) + GetPacketDuration ( 2 , m_sel) + GetPacketDuration ( 2 , m_session) + GetPacketDuration ( 2 ,m_valueTarget) + GetPacketDuration ( 4 , m_q);
                   m_preamble = RFID_PREAMBLE;
                   break;
 
@@ -238,21 +326,21 @@ namespace ns3
                   break;
 
                   default:
+                  // NAK if we have problem with verification crc
                   SetState(QUERY_REP);
                   m_noResponseCounter = 0;
                   m_tag_number += 1; 
                   std::cout << "************************ " << m_tag_number << " tags are identified ************************" << std::endl;
-                  Ptr<Packet> p = Create <Packet> ();
                   std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
                   SetReceiving (false);
-                  if (m_tag_number != GetTagNumber ()) {SendQueryRepOrAdjust (p);}
+                  if (m_tag_number != GetTagNumber ()) {SendQueryRepOrAdjust ();}
                   break; 
 
                  }
         if (GetState () != QUERY_REP )
            {  
                 AddEpcHeader (packet,m_header); 
-                if (GetState () != SELECT ) { m_duration += (m_preamble == RFID_PREAMBLE) ? m_conf.GetPreambleDuration () : m_conf.GetFrameSyncDuration (); }
+                m_duration += (m_preamble == RFID_PREAMBLE) ? m_conf.GetPreambleDuration () : m_conf.GetFrameSyncDuration ();
                 if (m_first != true) {Send(packet);}
            }
         }
@@ -276,9 +364,8 @@ namespace ns3
                   std::cout << "Reader_Statut " << m_eq << " " << m_sta << std::endl;
                   SetReceiving (false);
                   GetRfidPhy ()->Send (packet ,m_duration );
-                  m_id = Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT2()), &ReaderIdentification::SendQueryRepOrAdjust , this , packet);
+                  m_id = Simulator::Schedule (MicroSeconds (m_duration + m_conf.GetT1()), &ReaderIdentification::SendQueryRepOrAdjust , this);
                 }
-      
       return true;
     }
  
@@ -306,6 +393,7 @@ namespace ns3
       Simulator::Cancel (m_id);   
       m_forwardUp (packet, -1);
       SetEquipementState ( packet, 0);
+     // Simulator::Schedule (MicroSeconds (m_conf.GetT2() - 50), &ReaderIdentification::SetEquipementState , this, packet, 0);
     }
 
     void 
@@ -319,6 +407,16 @@ namespace ns3
       return m_rcv;
     }
 
+    void 
+    ReaderIdentification::SetCollision (bool collision)
+    {
+      m_collision = collision;
+    }
+    bool 
+    ReaderIdentification::GetCollision (void) const
+    {
+      return m_collision;
+    }
   }
 }
 
